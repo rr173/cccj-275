@@ -1,0 +1,2346 @@
+{
+  "report_type": "planned_window_reconciliation",
+  "overall_status": "attention_required",
+  "attention_required": true,
+  "window_attention_required": true,
+  "unmatched_readings_present": true,
+  "rule_version": {
+    "input_rule_version": "park-meter-rules-2026-v2",
+    "engine_rule_version": "planned-window-reconciliation-1.0.0"
+  },
+  "input_audit": {
+    "path": "/workspace/examples/reconciliation_input.json",
+    "sha256": "322c209dc86778c1f1db8c15e886a5c1824fa9a7214df012bcb31347ef580068",
+    "planned_windows_source": "planned_windows",
+    "reading_count": 13,
+    "valid_reading_count": 12,
+    "binding_count": 10,
+    "excluded_reading_count": 1,
+    "excluded_binding_count": 1
+  },
+  "rules": {
+    "half_open": "Planned windows and binding intervals are half-open [start, end); a reading exactly at a window end belongs to the next window, if any.",
+    "candidate_rule": "A reading is eligible for a window only if its UTC instant is inside the half-open window AND at that instant the reading's meter has a valid binding whose point_id equals the window point_id. A reading whose active bindings name several points is eligible for each of those points' windows but is never selected, because its attribution is ambiguous. A window with two or more eligible readings, or with an ambiguous-binding reading, is pending_review. A window with exactly one unambiguous eligible reading is matched only when that reading is eligible for no other window; otherwise every window sharing the reading is pending_review. A window with no eligible reading is missed. A reading can be selected for at most one window. Nearest-time selection is never performed.",
+    "status_meaning": {
+      "matched": "窗口恰有一条有效候选读数，且该读数只可能归属这一个计划窗口",
+      "pending_review": "窗口有多条候选读数，或读数/窗口归属不能唯一判定；不做静默挑选",
+      "missed": "窗口没有任何有效候选读数"
+    },
+    "selection_rule": "a reading is selected only when it is the single unambiguous candidate of exactly one window",
+    "duplicate_reading_rule": "one reading may be selected for at most one window"
+  },
+  "summary": {
+    "planned_window_count": 15,
+    "matched_window_count": 5,
+    "pending_review_window_count": 4,
+    "missed_window_count": 6,
+    "valid_reading_count": 12,
+    "selected_reading_count": 5,
+    "unmatched_reading_count": 7,
+    "excluded_reading_count": 1,
+    "excluded_binding_count": 1
+  },
+  "windows": [
+    {
+      "window_id": "W-01",
+      "point_id": "MP-01",
+      "status": "matched",
+      "status_label": "实到",
+      "status_meaning": "窗口恰有一条有效候选读数，且该读数只可能归属这一个计划窗口",
+      "expected_from": "2024-11-03T01:00:00-04:00",
+      "expected_to": "2024-11-03T01:45:00-04:00",
+      "start_utc": "2024-11-03T05:00:00Z",
+      "end_utc": "2024-11-03T05:45:00Z",
+      "duration_seconds": "2700",
+      "half_open": "Planned windows and binding intervals are half-open [start, end); a reading exactly at a window end belongs to the next window, if any.",
+      "selected_reading_id": "R-A1",
+      "selected_reading": {
+        "reading_id": "R-A1",
+        "meter_id": "M-A",
+        "declared_ts": "2024-11-03T01:30:00-04:00",
+        "ts_utc": "2024-11-03T05:30:00Z",
+        "value_wh": 100,
+        "path": "readings[0]",
+        "binding_state": "unique_point",
+        "bound_point_ids": [
+          "MP-01"
+        ],
+        "attribution_ambiguous": false,
+        "active_bindings": [
+          {
+            "binding_id": "B-A",
+            "meter_id": "M-A",
+            "point_id": "MP-01",
+            "scope_id": "S-01",
+            "declared_valid_from": "2024-11-01T00:00:00-04:00",
+            "declared_valid_to": "2024-12-01T00:00:00-05:00",
+            "valid_from_utc": "2024-11-01T04:00:00Z",
+            "valid_to_utc": "2024-12-01T05:00:00Z",
+            "path": "bindings[0]",
+            "raw": {
+              "binding_id": "B-A",
+              "meter_id": "M-A",
+              "point_id": "MP-01",
+              "scope_id": "S-01",
+              "valid_from": "2024-11-01T00:00:00-04:00",
+              "valid_to": "2024-12-01T00:00:00-05:00"
+            }
+          }
+        ],
+        "contained_window_ids": [
+          "W-01"
+        ],
+        "candidate_window_ids": [
+          "W-01"
+        ],
+        "warnings": [],
+        "raw": {
+          "reading_id": "R-A1",
+          "meter_id": "M-A",
+          "ts": "2024-11-03T01:30:00-04:00",
+          "value_wh": 100
+        }
+      },
+      "candidate_reading_ids": [
+        "R-A1"
+      ],
+      "candidate_readings": [
+        {
+          "reading_id": "R-A1",
+          "meter_id": "M-A",
+          "declared_ts": "2024-11-03T01:30:00-04:00",
+          "ts_utc": "2024-11-03T05:30:00Z",
+          "value_wh": 100,
+          "path": "readings[0]",
+          "binding_state": "unique_point",
+          "bound_point_ids": [
+            "MP-01"
+          ],
+          "attribution_ambiguous": false,
+          "active_bindings": [
+            {
+              "binding_id": "B-A",
+              "meter_id": "M-A",
+              "point_id": "MP-01",
+              "scope_id": "S-01",
+              "declared_valid_from": "2024-11-01T00:00:00-04:00",
+              "declared_valid_to": "2024-12-01T00:00:00-05:00",
+              "valid_from_utc": "2024-11-01T04:00:00Z",
+              "valid_to_utc": "2024-12-01T05:00:00Z",
+              "path": "bindings[0]",
+              "raw": {
+                "binding_id": "B-A",
+                "meter_id": "M-A",
+                "point_id": "MP-01",
+                "scope_id": "S-01",
+                "valid_from": "2024-11-01T00:00:00-04:00",
+                "valid_to": "2024-12-01T00:00:00-05:00"
+              }
+            }
+          ],
+          "contained_window_ids": [
+            "W-01"
+          ],
+          "candidate_window_ids": [
+            "W-01"
+          ],
+          "warnings": [],
+          "raw": {
+            "reading_id": "R-A1",
+            "meter_id": "M-A",
+            "ts": "2024-11-03T01:30:00-04:00",
+            "value_wh": 100
+          }
+        }
+      ],
+      "readings_inside_window": [
+        {
+          "reading_id": "R-A1",
+          "meter_id": "M-A",
+          "ts_utc": "2024-11-03T05:30:00Z",
+          "value_wh": 100,
+          "binding_state": "unique_point",
+          "bound_point_ids": [
+            "MP-01"
+          ],
+          "attribution": "candidate_for_this_window"
+        }
+      ],
+      "excluded_readings_inside_window": [],
+      "issues": [],
+      "overlapping_point_bindings": [
+        {
+          "binding_id": "B-A",
+          "meter_id": "M-A",
+          "point_id": "MP-01",
+          "scope_id": "S-01",
+          "declared_valid_from": "2024-11-01T00:00:00-04:00",
+          "declared_valid_to": "2024-12-01T00:00:00-05:00",
+          "valid_from_utc": "2024-11-01T04:00:00Z",
+          "valid_to_utc": "2024-12-01T05:00:00Z",
+          "overlap_start_utc": "2024-11-03T05:00:00Z",
+          "overlap_end_utc": "2024-11-03T05:45:00Z",
+          "path": "bindings[0]",
+          "raw": {
+            "binding_id": "B-A",
+            "meter_id": "M-A",
+            "point_id": "MP-01",
+            "scope_id": "S-01",
+            "valid_from": "2024-11-01T00:00:00-04:00",
+            "valid_to": "2024-12-01T00:00:00-05:00"
+          }
+        }
+      ],
+      "raw": {
+        "window_id": "W-01",
+        "point_id": "MP-01",
+        "expected_from": "2024-11-03T01:00:00-04:00",
+        "expected_to": "2024-11-03T01:45:00-04:00"
+      }
+    },
+    {
+      "window_id": "W-02",
+      "point_id": "MP-01",
+      "status": "matched",
+      "status_label": "实到",
+      "status_meaning": "窗口恰有一条有效候选读数，且该读数只可能归属这一个计划窗口",
+      "expected_from": "2024-11-03T01:45:00-04:00",
+      "expected_to": "2024-11-03T02:00:00-05:00",
+      "start_utc": "2024-11-03T05:45:00Z",
+      "end_utc": "2024-11-03T07:00:00Z",
+      "duration_seconds": "4500",
+      "half_open": "Planned windows and binding intervals are half-open [start, end); a reading exactly at a window end belongs to the next window, if any.",
+      "selected_reading_id": "R-A2",
+      "selected_reading": {
+        "reading_id": "R-A2",
+        "meter_id": "M-A",
+        "declared_ts": "2024-11-03T01:30:00-05:00",
+        "ts_utc": "2024-11-03T06:30:00Z",
+        "value_wh": 102,
+        "path": "readings[1]",
+        "binding_state": "unique_point",
+        "bound_point_ids": [
+          "MP-01"
+        ],
+        "attribution_ambiguous": false,
+        "active_bindings": [
+          {
+            "binding_id": "B-A",
+            "meter_id": "M-A",
+            "point_id": "MP-01",
+            "scope_id": "S-01",
+            "declared_valid_from": "2024-11-01T00:00:00-04:00",
+            "declared_valid_to": "2024-12-01T00:00:00-05:00",
+            "valid_from_utc": "2024-11-01T04:00:00Z",
+            "valid_to_utc": "2024-12-01T05:00:00Z",
+            "path": "bindings[0]",
+            "raw": {
+              "binding_id": "B-A",
+              "meter_id": "M-A",
+              "point_id": "MP-01",
+              "scope_id": "S-01",
+              "valid_from": "2024-11-01T00:00:00-04:00",
+              "valid_to": "2024-12-01T00:00:00-05:00"
+            }
+          }
+        ],
+        "contained_window_ids": [
+          "W-02"
+        ],
+        "candidate_window_ids": [
+          "W-02"
+        ],
+        "warnings": [],
+        "raw": {
+          "reading_id": "R-A2",
+          "meter_id": "M-A",
+          "ts": "2024-11-03T01:30:00-05:00",
+          "value_wh": 102
+        }
+      },
+      "candidate_reading_ids": [
+        "R-A2"
+      ],
+      "candidate_readings": [
+        {
+          "reading_id": "R-A2",
+          "meter_id": "M-A",
+          "declared_ts": "2024-11-03T01:30:00-05:00",
+          "ts_utc": "2024-11-03T06:30:00Z",
+          "value_wh": 102,
+          "path": "readings[1]",
+          "binding_state": "unique_point",
+          "bound_point_ids": [
+            "MP-01"
+          ],
+          "attribution_ambiguous": false,
+          "active_bindings": [
+            {
+              "binding_id": "B-A",
+              "meter_id": "M-A",
+              "point_id": "MP-01",
+              "scope_id": "S-01",
+              "declared_valid_from": "2024-11-01T00:00:00-04:00",
+              "declared_valid_to": "2024-12-01T00:00:00-05:00",
+              "valid_from_utc": "2024-11-01T04:00:00Z",
+              "valid_to_utc": "2024-12-01T05:00:00Z",
+              "path": "bindings[0]",
+              "raw": {
+                "binding_id": "B-A",
+                "meter_id": "M-A",
+                "point_id": "MP-01",
+                "scope_id": "S-01",
+                "valid_from": "2024-11-01T00:00:00-04:00",
+                "valid_to": "2024-12-01T00:00:00-05:00"
+              }
+            }
+          ],
+          "contained_window_ids": [
+            "W-02"
+          ],
+          "candidate_window_ids": [
+            "W-02"
+          ],
+          "warnings": [],
+          "raw": {
+            "reading_id": "R-A2",
+            "meter_id": "M-A",
+            "ts": "2024-11-03T01:30:00-05:00",
+            "value_wh": 102
+          }
+        }
+      ],
+      "readings_inside_window": [
+        {
+          "reading_id": "R-A2",
+          "meter_id": "M-A",
+          "ts_utc": "2024-11-03T06:30:00Z",
+          "value_wh": 102,
+          "binding_state": "unique_point",
+          "bound_point_ids": [
+            "MP-01"
+          ],
+          "attribution": "candidate_for_this_window"
+        }
+      ],
+      "excluded_readings_inside_window": [],
+      "issues": [],
+      "overlapping_point_bindings": [
+        {
+          "binding_id": "B-A",
+          "meter_id": "M-A",
+          "point_id": "MP-01",
+          "scope_id": "S-01",
+          "declared_valid_from": "2024-11-01T00:00:00-04:00",
+          "declared_valid_to": "2024-12-01T00:00:00-05:00",
+          "valid_from_utc": "2024-11-01T04:00:00Z",
+          "valid_to_utc": "2024-12-01T05:00:00Z",
+          "overlap_start_utc": "2024-11-03T05:45:00Z",
+          "overlap_end_utc": "2024-11-03T07:00:00Z",
+          "path": "bindings[0]",
+          "raw": {
+            "binding_id": "B-A",
+            "meter_id": "M-A",
+            "point_id": "MP-01",
+            "scope_id": "S-01",
+            "valid_from": "2024-11-01T00:00:00-04:00",
+            "valid_to": "2024-12-01T00:00:00-05:00"
+          }
+        }
+      ],
+      "raw": {
+        "window_id": "W-02",
+        "point_id": "MP-01",
+        "expected_from": "2024-11-03T01:45:00-04:00",
+        "expected_to": "2024-11-03T02:00:00-05:00"
+      }
+    },
+    {
+      "window_id": "W-03",
+      "point_id": "MP-01",
+      "status": "missed",
+      "status_label": "漏采",
+      "status_meaning": "窗口没有任何有效候选读数",
+      "expected_from": "2024-11-03T03:00:00-05:00",
+      "expected_to": "2024-11-03T04:00:00-05:00",
+      "start_utc": "2024-11-03T08:00:00Z",
+      "end_utc": "2024-11-03T09:00:00Z",
+      "duration_seconds": "3600",
+      "half_open": "Planned windows and binding intervals are half-open [start, end); a reading exactly at a window end belongs to the next window, if any.",
+      "selected_reading_id": null,
+      "selected_reading": null,
+      "candidate_reading_ids": [],
+      "candidate_readings": [],
+      "readings_inside_window": [],
+      "excluded_readings_inside_window": [],
+      "issues": [
+        {
+          "code": "no_candidate_reading",
+          "message": "no reading both falls inside the window and is bound to the window point at its instant"
+        }
+      ],
+      "overlapping_point_bindings": [
+        {
+          "binding_id": "B-A",
+          "meter_id": "M-A",
+          "point_id": "MP-01",
+          "scope_id": "S-01",
+          "declared_valid_from": "2024-11-01T00:00:00-04:00",
+          "declared_valid_to": "2024-12-01T00:00:00-05:00",
+          "valid_from_utc": "2024-11-01T04:00:00Z",
+          "valid_to_utc": "2024-12-01T05:00:00Z",
+          "overlap_start_utc": "2024-11-03T08:00:00Z",
+          "overlap_end_utc": "2024-11-03T09:00:00Z",
+          "path": "bindings[0]",
+          "raw": {
+            "binding_id": "B-A",
+            "meter_id": "M-A",
+            "point_id": "MP-01",
+            "scope_id": "S-01",
+            "valid_from": "2024-11-01T00:00:00-04:00",
+            "valid_to": "2024-12-01T00:00:00-05:00"
+          }
+        }
+      ],
+      "raw": {
+        "window_id": "W-03",
+        "point_id": "MP-01",
+        "expected_from": "2024-11-03T03:00:00-05:00",
+        "expected_to": "2024-11-03T04:00:00-05:00"
+      }
+    },
+    {
+      "window_id": "W-04",
+      "point_id": "MP-05",
+      "status": "pending_review",
+      "status_label": "待核",
+      "status_meaning": "窗口有多条候选读数，或读数/窗口归属不能唯一判定；不做静默挑选",
+      "expected_from": "2024-11-04T10:00:00+00:00",
+      "expected_to": "2024-11-04T11:00:00+00:00",
+      "start_utc": "2024-11-04T10:00:00Z",
+      "end_utc": "2024-11-04T11:00:00Z",
+      "duration_seconds": "3600",
+      "half_open": "Planned windows and binding intervals are half-open [start, end); a reading exactly at a window end belongs to the next window, if any.",
+      "selected_reading_id": null,
+      "selected_reading": null,
+      "candidate_reading_ids": [
+        "R-S1"
+      ],
+      "candidate_readings": [
+        {
+          "reading_id": "R-S1",
+          "meter_id": "M-S",
+          "declared_ts": "2024-11-04T10:30:00+00:00",
+          "ts_utc": "2024-11-04T10:30:00Z",
+          "value_wh": 200,
+          "path": "readings[2]",
+          "binding_state": "unique_point",
+          "bound_point_ids": [
+            "MP-05"
+          ],
+          "attribution_ambiguous": false,
+          "active_bindings": [
+            {
+              "binding_id": "B-S",
+              "meter_id": "M-S",
+              "point_id": "MP-05",
+              "scope_id": "S-05",
+              "declared_valid_from": "2024-11-01T00:00:00-04:00",
+              "declared_valid_to": "2024-12-01T00:00:00-05:00",
+              "valid_from_utc": "2024-11-01T04:00:00Z",
+              "valid_to_utc": "2024-12-01T05:00:00Z",
+              "path": "bindings[1]",
+              "raw": {
+                "binding_id": "B-S",
+                "meter_id": "M-S",
+                "point_id": "MP-05",
+                "scope_id": "S-05",
+                "valid_from": "2024-11-01T00:00:00-04:00",
+                "valid_to": "2024-12-01T00:00:00-05:00"
+              }
+            }
+          ],
+          "contained_window_ids": [
+            "W-04",
+            "W-05"
+          ],
+          "candidate_window_ids": [
+            "W-04",
+            "W-05"
+          ],
+          "warnings": [],
+          "raw": {
+            "reading_id": "R-S1",
+            "meter_id": "M-S",
+            "ts": "2024-11-04T10:30:00+00:00",
+            "value_wh": 200
+          }
+        }
+      ],
+      "readings_inside_window": [
+        {
+          "reading_id": "R-S1",
+          "meter_id": "M-S",
+          "ts_utc": "2024-11-04T10:30:00Z",
+          "value_wh": 200,
+          "binding_state": "unique_point",
+          "bound_point_ids": [
+            "MP-05"
+          ],
+          "attribution": "candidate_for_this_window"
+        }
+      ],
+      "excluded_readings_inside_window": [],
+      "issues": [
+        {
+          "code": "reading_shared_across_windows",
+          "message": "the only eligible reading is also eligible for other planned windows; attribution is not unique",
+          "reading_id": "R-S1",
+          "other_window_ids": [
+            "W-05"
+          ]
+        }
+      ],
+      "overlapping_point_bindings": [
+        {
+          "binding_id": "B-S",
+          "meter_id": "M-S",
+          "point_id": "MP-05",
+          "scope_id": "S-05",
+          "declared_valid_from": "2024-11-01T00:00:00-04:00",
+          "declared_valid_to": "2024-12-01T00:00:00-05:00",
+          "valid_from_utc": "2024-11-01T04:00:00Z",
+          "valid_to_utc": "2024-12-01T05:00:00Z",
+          "overlap_start_utc": "2024-11-04T10:00:00Z",
+          "overlap_end_utc": "2024-11-04T11:00:00Z",
+          "path": "bindings[1]",
+          "raw": {
+            "binding_id": "B-S",
+            "meter_id": "M-S",
+            "point_id": "MP-05",
+            "scope_id": "S-05",
+            "valid_from": "2024-11-01T00:00:00-04:00",
+            "valid_to": "2024-12-01T00:00:00-05:00"
+          }
+        }
+      ],
+      "raw": {
+        "window_id": "W-04",
+        "point_id": "MP-05",
+        "expected_from": "2024-11-04T10:00:00+00:00",
+        "expected_to": "2024-11-04T11:00:00+00:00"
+      }
+    },
+    {
+      "window_id": "W-05",
+      "point_id": "MP-05",
+      "status": "pending_review",
+      "status_label": "待核",
+      "status_meaning": "窗口有多条候选读数，或读数/窗口归属不能唯一判定；不做静默挑选",
+      "expected_from": "2024-11-04T10:30:00+00:00",
+      "expected_to": "2024-11-04T11:30:00+00:00",
+      "start_utc": "2024-11-04T10:30:00Z",
+      "end_utc": "2024-11-04T11:30:00Z",
+      "duration_seconds": "3600",
+      "half_open": "Planned windows and binding intervals are half-open [start, end); a reading exactly at a window end belongs to the next window, if any.",
+      "selected_reading_id": null,
+      "selected_reading": null,
+      "candidate_reading_ids": [
+        "R-S1"
+      ],
+      "candidate_readings": [
+        {
+          "reading_id": "R-S1",
+          "meter_id": "M-S",
+          "declared_ts": "2024-11-04T10:30:00+00:00",
+          "ts_utc": "2024-11-04T10:30:00Z",
+          "value_wh": 200,
+          "path": "readings[2]",
+          "binding_state": "unique_point",
+          "bound_point_ids": [
+            "MP-05"
+          ],
+          "attribution_ambiguous": false,
+          "active_bindings": [
+            {
+              "binding_id": "B-S",
+              "meter_id": "M-S",
+              "point_id": "MP-05",
+              "scope_id": "S-05",
+              "declared_valid_from": "2024-11-01T00:00:00-04:00",
+              "declared_valid_to": "2024-12-01T00:00:00-05:00",
+              "valid_from_utc": "2024-11-01T04:00:00Z",
+              "valid_to_utc": "2024-12-01T05:00:00Z",
+              "path": "bindings[1]",
+              "raw": {
+                "binding_id": "B-S",
+                "meter_id": "M-S",
+                "point_id": "MP-05",
+                "scope_id": "S-05",
+                "valid_from": "2024-11-01T00:00:00-04:00",
+                "valid_to": "2024-12-01T00:00:00-05:00"
+              }
+            }
+          ],
+          "contained_window_ids": [
+            "W-04",
+            "W-05"
+          ],
+          "candidate_window_ids": [
+            "W-04",
+            "W-05"
+          ],
+          "warnings": [],
+          "raw": {
+            "reading_id": "R-S1",
+            "meter_id": "M-S",
+            "ts": "2024-11-04T10:30:00+00:00",
+            "value_wh": 200
+          }
+        }
+      ],
+      "readings_inside_window": [
+        {
+          "reading_id": "R-S1",
+          "meter_id": "M-S",
+          "ts_utc": "2024-11-04T10:30:00Z",
+          "value_wh": 200,
+          "binding_state": "unique_point",
+          "bound_point_ids": [
+            "MP-05"
+          ],
+          "attribution": "candidate_for_this_window"
+        }
+      ],
+      "excluded_readings_inside_window": [],
+      "issues": [
+        {
+          "code": "reading_shared_across_windows",
+          "message": "the only eligible reading is also eligible for other planned windows; attribution is not unique",
+          "reading_id": "R-S1",
+          "other_window_ids": [
+            "W-04"
+          ]
+        }
+      ],
+      "overlapping_point_bindings": [
+        {
+          "binding_id": "B-S",
+          "meter_id": "M-S",
+          "point_id": "MP-05",
+          "scope_id": "S-05",
+          "declared_valid_from": "2024-11-01T00:00:00-04:00",
+          "declared_valid_to": "2024-12-01T00:00:00-05:00",
+          "valid_from_utc": "2024-11-01T04:00:00Z",
+          "valid_to_utc": "2024-12-01T05:00:00Z",
+          "overlap_start_utc": "2024-11-04T10:30:00Z",
+          "overlap_end_utc": "2024-11-04T11:30:00Z",
+          "path": "bindings[1]",
+          "raw": {
+            "binding_id": "B-S",
+            "meter_id": "M-S",
+            "point_id": "MP-05",
+            "scope_id": "S-05",
+            "valid_from": "2024-11-01T00:00:00-04:00",
+            "valid_to": "2024-12-01T00:00:00-05:00"
+          }
+        }
+      ],
+      "raw": {
+        "window_id": "W-05",
+        "point_id": "MP-05",
+        "expected_from": "2024-11-04T10:30:00+00:00",
+        "expected_to": "2024-11-04T11:30:00+00:00"
+      }
+    },
+    {
+      "window_id": "W-06",
+      "point_id": "MP-06",
+      "status": "pending_review",
+      "status_label": "待核",
+      "status_meaning": "窗口有多条候选读数，或读数/窗口归属不能唯一判定；不做静默挑选",
+      "expected_from": "2024-11-04T12:00:00+00:00",
+      "expected_to": "2024-11-04T13:00:00+00:00",
+      "start_utc": "2024-11-04T12:00:00Z",
+      "end_utc": "2024-11-04T13:00:00Z",
+      "duration_seconds": "3600",
+      "half_open": "Planned windows and binding intervals are half-open [start, end); a reading exactly at a window end belongs to the next window, if any.",
+      "selected_reading_id": null,
+      "selected_reading": null,
+      "candidate_reading_ids": [
+        "R-M1",
+        "R-M2"
+      ],
+      "candidate_readings": [
+        {
+          "reading_id": "R-M1",
+          "meter_id": "M-M",
+          "declared_ts": "2024-11-04T12:10:00+00:00",
+          "ts_utc": "2024-11-04T12:10:00Z",
+          "value_wh": 300,
+          "path": "readings[3]",
+          "binding_state": "unique_point",
+          "bound_point_ids": [
+            "MP-06"
+          ],
+          "attribution_ambiguous": false,
+          "active_bindings": [
+            {
+              "binding_id": "B-M",
+              "meter_id": "M-M",
+              "point_id": "MP-06",
+              "scope_id": "S-06",
+              "declared_valid_from": "2024-11-01T00:00:00-04:00",
+              "declared_valid_to": "2024-12-01T00:00:00-05:00",
+              "valid_from_utc": "2024-11-01T04:00:00Z",
+              "valid_to_utc": "2024-12-01T05:00:00Z",
+              "path": "bindings[2]",
+              "raw": {
+                "binding_id": "B-M",
+                "meter_id": "M-M",
+                "point_id": "MP-06",
+                "scope_id": "S-06",
+                "valid_from": "2024-11-01T00:00:00-04:00",
+                "valid_to": "2024-12-01T00:00:00-05:00"
+              }
+            }
+          ],
+          "contained_window_ids": [
+            "W-06"
+          ],
+          "candidate_window_ids": [
+            "W-06"
+          ],
+          "warnings": [
+            {
+              "code": "declared_point_differs_from_binding",
+              "severity": "warning",
+              "message": "reading row declares a point that differs from its effective binding; binding evidence governs",
+              "declared_point_id": "MP-OTHER",
+              "bound_point_ids": [
+                "MP-06"
+              ]
+            }
+          ],
+          "raw": {
+            "reading_id": "R-M1",
+            "meter_id": "M-M",
+            "point_id": "MP-OTHER",
+            "ts": "2024-11-04T12:10:00+00:00",
+            "value_wh": 300
+          }
+        },
+        {
+          "reading_id": "R-M2",
+          "meter_id": "M-M",
+          "declared_ts": "2024-11-04T12:50:00+00:00",
+          "ts_utc": "2024-11-04T12:50:00Z",
+          "value_wh": 301,
+          "path": "readings[4]",
+          "binding_state": "unique_point",
+          "bound_point_ids": [
+            "MP-06"
+          ],
+          "attribution_ambiguous": false,
+          "active_bindings": [
+            {
+              "binding_id": "B-M",
+              "meter_id": "M-M",
+              "point_id": "MP-06",
+              "scope_id": "S-06",
+              "declared_valid_from": "2024-11-01T00:00:00-04:00",
+              "declared_valid_to": "2024-12-01T00:00:00-05:00",
+              "valid_from_utc": "2024-11-01T04:00:00Z",
+              "valid_to_utc": "2024-12-01T05:00:00Z",
+              "path": "bindings[2]",
+              "raw": {
+                "binding_id": "B-M",
+                "meter_id": "M-M",
+                "point_id": "MP-06",
+                "scope_id": "S-06",
+                "valid_from": "2024-11-01T00:00:00-04:00",
+                "valid_to": "2024-12-01T00:00:00-05:00"
+              }
+            }
+          ],
+          "contained_window_ids": [
+            "W-06"
+          ],
+          "candidate_window_ids": [
+            "W-06"
+          ],
+          "warnings": [],
+          "raw": {
+            "reading_id": "R-M2",
+            "meter_id": "M-M",
+            "ts": "2024-11-04T12:50:00+00:00",
+            "value_wh": 301
+          }
+        }
+      ],
+      "readings_inside_window": [
+        {
+          "reading_id": "R-M1",
+          "meter_id": "M-M",
+          "ts_utc": "2024-11-04T12:10:00Z",
+          "value_wh": 300,
+          "binding_state": "unique_point",
+          "bound_point_ids": [
+            "MP-06"
+          ],
+          "attribution": "candidate_for_this_window"
+        },
+        {
+          "reading_id": "R-M2",
+          "meter_id": "M-M",
+          "ts_utc": "2024-11-04T12:50:00Z",
+          "value_wh": 301,
+          "binding_state": "unique_point",
+          "bound_point_ids": [
+            "MP-06"
+          ],
+          "attribution": "candidate_for_this_window"
+        }
+      ],
+      "excluded_readings_inside_window": [],
+      "issues": [
+        {
+          "code": "multiple_candidate_readings",
+          "message": "more than one eligible reading falls inside the window; no reading is selected by proximity",
+          "candidate_reading_ids": [
+            "R-M1",
+            "R-M2"
+          ]
+        }
+      ],
+      "overlapping_point_bindings": [
+        {
+          "binding_id": "B-M",
+          "meter_id": "M-M",
+          "point_id": "MP-06",
+          "scope_id": "S-06",
+          "declared_valid_from": "2024-11-01T00:00:00-04:00",
+          "declared_valid_to": "2024-12-01T00:00:00-05:00",
+          "valid_from_utc": "2024-11-01T04:00:00Z",
+          "valid_to_utc": "2024-12-01T05:00:00Z",
+          "overlap_start_utc": "2024-11-04T12:00:00Z",
+          "overlap_end_utc": "2024-11-04T13:00:00Z",
+          "path": "bindings[2]",
+          "raw": {
+            "binding_id": "B-M",
+            "meter_id": "M-M",
+            "point_id": "MP-06",
+            "scope_id": "S-06",
+            "valid_from": "2024-11-01T00:00:00-04:00",
+            "valid_to": "2024-12-01T00:00:00-05:00"
+          }
+        }
+      ],
+      "raw": {
+        "window_id": "W-06",
+        "point_id": "MP-06",
+        "expected_from": "2024-11-04T12:00:00+00:00",
+        "expected_to": "2024-11-04T13:00:00+00:00"
+      }
+    },
+    {
+      "window_id": "W-07",
+      "point_id": "MP-07",
+      "status": "missed",
+      "status_label": "漏采",
+      "status_meaning": "窗口没有任何有效候选读数",
+      "expected_from": "2024-11-04T14:00:00+00:00",
+      "expected_to": "2024-11-04T15:00:00+00:00",
+      "start_utc": "2024-11-04T14:00:00Z",
+      "end_utc": "2024-11-04T15:00:00Z",
+      "duration_seconds": "3600",
+      "half_open": "Planned windows and binding intervals are half-open [start, end); a reading exactly at a window end belongs to the next window, if any.",
+      "selected_reading_id": null,
+      "selected_reading": null,
+      "candidate_reading_ids": [],
+      "candidate_readings": [],
+      "readings_inside_window": [
+        {
+          "reading_id": "R-N1",
+          "meter_id": "M-N",
+          "ts_utc": "2024-11-04T14:20:00Z",
+          "value_wh": 400,
+          "binding_state": "no_active_binding",
+          "bound_point_ids": [],
+          "attribution": "no_effective_binding_at_reading_time",
+          "active_bindings": []
+        }
+      ],
+      "excluded_readings_inside_window": [],
+      "issues": [
+        {
+          "code": "no_candidate_reading",
+          "message": "no reading both falls inside the window and is bound to the window point at its instant"
+        }
+      ],
+      "overlapping_point_bindings": [],
+      "raw": {
+        "window_id": "W-07",
+        "point_id": "MP-07",
+        "expected_from": "2024-11-04T14:00:00+00:00",
+        "expected_to": "2024-11-04T15:00:00+00:00"
+      }
+    },
+    {
+      "window_id": "W-08",
+      "point_id": "MP-08",
+      "status": "missed",
+      "status_label": "漏采",
+      "status_meaning": "窗口没有任何有效候选读数",
+      "expected_from": "2024-11-04T16:00:00+00:00",
+      "expected_to": "2024-11-04T17:00:00+00:00",
+      "start_utc": "2024-11-04T16:00:00Z",
+      "end_utc": "2024-11-04T17:00:00Z",
+      "duration_seconds": "3600",
+      "half_open": "Planned windows and binding intervals are half-open [start, end); a reading exactly at a window end belongs to the next window, if any.",
+      "selected_reading_id": null,
+      "selected_reading": null,
+      "candidate_reading_ids": [],
+      "candidate_readings": [],
+      "readings_inside_window": [
+        {
+          "reading_id": "R-D1",
+          "meter_id": "M-D",
+          "ts_utc": "2024-11-04T16:20:00Z",
+          "value_wh": 500,
+          "binding_state": "unique_point",
+          "bound_point_ids": [
+            "MP-99"
+          ],
+          "attribution": "bound_to_other_point",
+          "active_bindings": [
+            {
+              "binding_id": "B-D",
+              "meter_id": "M-D",
+              "point_id": "MP-99",
+              "scope_id": "S-99",
+              "declared_valid_from": "2024-11-01T00:00:00-04:00",
+              "declared_valid_to": "2024-12-01T00:00:00-05:00",
+              "valid_from_utc": "2024-11-01T04:00:00Z",
+              "valid_to_utc": "2024-12-01T05:00:00Z",
+              "path": "bindings[3]",
+              "raw": {
+                "binding_id": "B-D",
+                "meter_id": "M-D",
+                "point_id": "MP-99",
+                "scope_id": "S-99",
+                "valid_from": "2024-11-01T00:00:00-04:00",
+                "valid_to": "2024-12-01T00:00:00-05:00"
+              }
+            }
+          ]
+        }
+      ],
+      "excluded_readings_inside_window": [],
+      "issues": [
+        {
+          "code": "no_candidate_reading",
+          "message": "no reading both falls inside the window and is bound to the window point at its instant"
+        }
+      ],
+      "overlapping_point_bindings": [],
+      "raw": {
+        "window_id": "W-08",
+        "point_id": "MP-08",
+        "expected_from": "2024-11-04T16:00:00+00:00",
+        "expected_to": "2024-11-04T17:00:00+00:00"
+      }
+    },
+    {
+      "window_id": "W-09",
+      "point_id": "MP-09",
+      "status": "pending_review",
+      "status_label": "待核",
+      "status_meaning": "窗口有多条候选读数，或读数/窗口归属不能唯一判定；不做静默挑选",
+      "expected_from": "2024-11-04T18:00:00+00:00",
+      "expected_to": "2024-11-04T19:00:00+00:00",
+      "start_utc": "2024-11-04T18:00:00Z",
+      "end_utc": "2024-11-04T19:00:00Z",
+      "duration_seconds": "3600",
+      "half_open": "Planned windows and binding intervals are half-open [start, end); a reading exactly at a window end belongs to the next window, if any.",
+      "selected_reading_id": null,
+      "selected_reading": null,
+      "candidate_reading_ids": [
+        "R-AMB1"
+      ],
+      "candidate_readings": [
+        {
+          "reading_id": "R-AMB1",
+          "meter_id": "M-AMB",
+          "declared_ts": "2024-11-04T18:20:00+00:00",
+          "ts_utc": "2024-11-04T18:20:00Z",
+          "value_wh": 600,
+          "path": "readings[7]",
+          "binding_state": "ambiguous_binding",
+          "bound_point_ids": [
+            "MP-09",
+            "MP-99"
+          ],
+          "attribution_ambiguous": true,
+          "active_bindings": [
+            {
+              "binding_id": "B-AMB1",
+              "meter_id": "M-AMB",
+              "point_id": "MP-09",
+              "scope_id": "S-09",
+              "declared_valid_from": "2024-11-01T00:00:00-04:00",
+              "declared_valid_to": "2024-12-01T00:00:00-05:00",
+              "valid_from_utc": "2024-11-01T04:00:00Z",
+              "valid_to_utc": "2024-12-01T05:00:00Z",
+              "path": "bindings[4]",
+              "raw": {
+                "binding_id": "B-AMB1",
+                "meter_id": "M-AMB",
+                "point_id": "MP-09",
+                "scope_id": "S-09",
+                "valid_from": "2024-11-01T00:00:00-04:00",
+                "valid_to": "2024-12-01T00:00:00-05:00"
+              }
+            },
+            {
+              "binding_id": "B-AMB2",
+              "meter_id": "M-AMB",
+              "point_id": "MP-99",
+              "scope_id": "S-99",
+              "declared_valid_from": "2024-11-01T00:00:00-04:00",
+              "declared_valid_to": "2024-12-01T00:00:00-05:00",
+              "valid_from_utc": "2024-11-01T04:00:00Z",
+              "valid_to_utc": "2024-12-01T05:00:00Z",
+              "path": "bindings[5]",
+              "raw": {
+                "binding_id": "B-AMB2",
+                "meter_id": "M-AMB",
+                "point_id": "MP-99",
+                "scope_id": "S-99",
+                "valid_from": "2024-11-01T00:00:00-04:00",
+                "valid_to": "2024-12-01T00:00:00-05:00"
+              }
+            }
+          ],
+          "contained_window_ids": [
+            "W-09"
+          ],
+          "candidate_window_ids": [
+            "W-09"
+          ],
+          "warnings": [],
+          "raw": {
+            "reading_id": "R-AMB1",
+            "meter_id": "M-AMB",
+            "ts": "2024-11-04T18:20:00+00:00",
+            "value_wh": 600
+          }
+        }
+      ],
+      "readings_inside_window": [
+        {
+          "reading_id": "R-AMB1",
+          "meter_id": "M-AMB",
+          "ts_utc": "2024-11-04T18:20:00Z",
+          "value_wh": 600,
+          "binding_state": "ambiguous_binding",
+          "bound_point_ids": [
+            "MP-09",
+            "MP-99"
+          ],
+          "attribution": "candidate_for_this_window"
+        }
+      ],
+      "excluded_readings_inside_window": [],
+      "issues": [
+        {
+          "code": "ambiguous_binding_at_reading_time",
+          "message": "a reading inside the window is bound to several points at its instant; attribution is not unique",
+          "reading_ids": [
+            "R-AMB1"
+          ],
+          "candidate_reading_ids": [
+            "R-AMB1"
+          ]
+        }
+      ],
+      "overlapping_point_bindings": [
+        {
+          "binding_id": "B-AMB1",
+          "meter_id": "M-AMB",
+          "point_id": "MP-09",
+          "scope_id": "S-09",
+          "declared_valid_from": "2024-11-01T00:00:00-04:00",
+          "declared_valid_to": "2024-12-01T00:00:00-05:00",
+          "valid_from_utc": "2024-11-01T04:00:00Z",
+          "valid_to_utc": "2024-12-01T05:00:00Z",
+          "overlap_start_utc": "2024-11-04T18:00:00Z",
+          "overlap_end_utc": "2024-11-04T19:00:00Z",
+          "path": "bindings[4]",
+          "raw": {
+            "binding_id": "B-AMB1",
+            "meter_id": "M-AMB",
+            "point_id": "MP-09",
+            "scope_id": "S-09",
+            "valid_from": "2024-11-01T00:00:00-04:00",
+            "valid_to": "2024-12-01T00:00:00-05:00"
+          }
+        }
+      ],
+      "raw": {
+        "window_id": "W-09",
+        "point_id": "MP-09",
+        "expected_from": "2024-11-04T18:00:00+00:00",
+        "expected_to": "2024-11-04T19:00:00+00:00"
+      }
+    },
+    {
+      "window_id": "W-10",
+      "point_id": "MP-10",
+      "status": "missed",
+      "status_label": "漏采",
+      "status_meaning": "窗口没有任何有效候选读数",
+      "expected_from": "2024-11-04T20:00:00+00:00",
+      "expected_to": "2024-11-04T21:00:00+00:00",
+      "start_utc": "2024-11-04T20:00:00Z",
+      "end_utc": "2024-11-04T21:00:00Z",
+      "duration_seconds": "3600",
+      "half_open": "Planned windows and binding intervals are half-open [start, end); a reading exactly at a window end belongs to the next window, if any.",
+      "selected_reading_id": null,
+      "selected_reading": null,
+      "candidate_reading_ids": [],
+      "candidate_readings": [],
+      "readings_inside_window": [],
+      "excluded_readings_inside_window": [],
+      "issues": [
+        {
+          "code": "no_candidate_reading",
+          "message": "no reading both falls inside the window and is bound to the window point at its instant"
+        }
+      ],
+      "overlapping_point_bindings": [
+        {
+          "binding_id": "B-B",
+          "meter_id": "M-B",
+          "point_id": "MP-10",
+          "scope_id": "S-10",
+          "declared_valid_from": "2024-11-01T00:00:00-04:00",
+          "declared_valid_to": "2024-12-01T00:00:00-05:00",
+          "valid_from_utc": "2024-11-01T04:00:00Z",
+          "valid_to_utc": "2024-12-01T05:00:00Z",
+          "overlap_start_utc": "2024-11-04T20:00:00Z",
+          "overlap_end_utc": "2024-11-04T21:00:00Z",
+          "path": "bindings[6]",
+          "raw": {
+            "binding_id": "B-B",
+            "meter_id": "M-B",
+            "point_id": "MP-10",
+            "scope_id": "S-10",
+            "valid_from": "2024-11-01T00:00:00-04:00",
+            "valid_to": "2024-12-01T00:00:00-05:00"
+          }
+        }
+      ],
+      "raw": {
+        "window_id": "W-10",
+        "point_id": "MP-10",
+        "expected_from": "2024-11-04T20:00:00+00:00",
+        "expected_to": "2024-11-04T21:00:00+00:00"
+      }
+    },
+    {
+      "window_id": "W-11",
+      "point_id": "MP-10",
+      "status": "matched",
+      "status_label": "实到",
+      "status_meaning": "窗口恰有一条有效候选读数，且该读数只可能归属这一个计划窗口",
+      "expected_from": "2024-11-04T21:00:00+00:00",
+      "expected_to": "2024-11-04T22:00:00+00:00",
+      "start_utc": "2024-11-04T21:00:00Z",
+      "end_utc": "2024-11-04T22:00:00Z",
+      "duration_seconds": "3600",
+      "half_open": "Planned windows and binding intervals are half-open [start, end); a reading exactly at a window end belongs to the next window, if any.",
+      "selected_reading_id": "R-B1",
+      "selected_reading": {
+        "reading_id": "R-B1",
+        "meter_id": "M-B",
+        "declared_ts": "2024-11-04T21:00:00+00:00",
+        "ts_utc": "2024-11-04T21:00:00Z",
+        "value_wh": 700,
+        "path": "readings[8]",
+        "binding_state": "unique_point",
+        "bound_point_ids": [
+          "MP-10"
+        ],
+        "attribution_ambiguous": false,
+        "active_bindings": [
+          {
+            "binding_id": "B-B",
+            "meter_id": "M-B",
+            "point_id": "MP-10",
+            "scope_id": "S-10",
+            "declared_valid_from": "2024-11-01T00:00:00-04:00",
+            "declared_valid_to": "2024-12-01T00:00:00-05:00",
+            "valid_from_utc": "2024-11-01T04:00:00Z",
+            "valid_to_utc": "2024-12-01T05:00:00Z",
+            "path": "bindings[6]",
+            "raw": {
+              "binding_id": "B-B",
+              "meter_id": "M-B",
+              "point_id": "MP-10",
+              "scope_id": "S-10",
+              "valid_from": "2024-11-01T00:00:00-04:00",
+              "valid_to": "2024-12-01T00:00:00-05:00"
+            }
+          }
+        ],
+        "contained_window_ids": [
+          "W-11"
+        ],
+        "candidate_window_ids": [
+          "W-11"
+        ],
+        "warnings": [],
+        "raw": {
+          "reading_id": "R-B1",
+          "meter_id": "M-B",
+          "ts": "2024-11-04T21:00:00+00:00",
+          "value_wh": 700
+        }
+      },
+      "candidate_reading_ids": [
+        "R-B1"
+      ],
+      "candidate_readings": [
+        {
+          "reading_id": "R-B1",
+          "meter_id": "M-B",
+          "declared_ts": "2024-11-04T21:00:00+00:00",
+          "ts_utc": "2024-11-04T21:00:00Z",
+          "value_wh": 700,
+          "path": "readings[8]",
+          "binding_state": "unique_point",
+          "bound_point_ids": [
+            "MP-10"
+          ],
+          "attribution_ambiguous": false,
+          "active_bindings": [
+            {
+              "binding_id": "B-B",
+              "meter_id": "M-B",
+              "point_id": "MP-10",
+              "scope_id": "S-10",
+              "declared_valid_from": "2024-11-01T00:00:00-04:00",
+              "declared_valid_to": "2024-12-01T00:00:00-05:00",
+              "valid_from_utc": "2024-11-01T04:00:00Z",
+              "valid_to_utc": "2024-12-01T05:00:00Z",
+              "path": "bindings[6]",
+              "raw": {
+                "binding_id": "B-B",
+                "meter_id": "M-B",
+                "point_id": "MP-10",
+                "scope_id": "S-10",
+                "valid_from": "2024-11-01T00:00:00-04:00",
+                "valid_to": "2024-12-01T00:00:00-05:00"
+              }
+            }
+          ],
+          "contained_window_ids": [
+            "W-11"
+          ],
+          "candidate_window_ids": [
+            "W-11"
+          ],
+          "warnings": [],
+          "raw": {
+            "reading_id": "R-B1",
+            "meter_id": "M-B",
+            "ts": "2024-11-04T21:00:00+00:00",
+            "value_wh": 700
+          }
+        }
+      ],
+      "readings_inside_window": [
+        {
+          "reading_id": "R-B1",
+          "meter_id": "M-B",
+          "ts_utc": "2024-11-04T21:00:00Z",
+          "value_wh": 700,
+          "binding_state": "unique_point",
+          "bound_point_ids": [
+            "MP-10"
+          ],
+          "attribution": "candidate_for_this_window"
+        }
+      ],
+      "excluded_readings_inside_window": [],
+      "issues": [],
+      "overlapping_point_bindings": [
+        {
+          "binding_id": "B-B",
+          "meter_id": "M-B",
+          "point_id": "MP-10",
+          "scope_id": "S-10",
+          "declared_valid_from": "2024-11-01T00:00:00-04:00",
+          "declared_valid_to": "2024-12-01T00:00:00-05:00",
+          "valid_from_utc": "2024-11-01T04:00:00Z",
+          "valid_to_utc": "2024-12-01T05:00:00Z",
+          "overlap_start_utc": "2024-11-04T21:00:00Z",
+          "overlap_end_utc": "2024-11-04T22:00:00Z",
+          "path": "bindings[6]",
+          "raw": {
+            "binding_id": "B-B",
+            "meter_id": "M-B",
+            "point_id": "MP-10",
+            "scope_id": "S-10",
+            "valid_from": "2024-11-01T00:00:00-04:00",
+            "valid_to": "2024-12-01T00:00:00-05:00"
+          }
+        }
+      ],
+      "raw": {
+        "window_id": "W-11",
+        "point_id": "MP-10",
+        "expected_from": "2024-11-04T21:00:00+00:00",
+        "expected_to": "2024-11-04T22:00:00+00:00"
+      }
+    },
+    {
+      "window_id": "W-12",
+      "point_id": "MP-12",
+      "status": "matched",
+      "status_label": "实到",
+      "status_meaning": "窗口恰有一条有效候选读数，且该读数只可能归属这一个计划窗口",
+      "expected_from": "2024-11-04T17:00:00-05:00",
+      "expected_to": "2024-11-04T18:30:00-05:00",
+      "start_utc": "2024-11-04T22:00:00Z",
+      "end_utc": "2024-11-04T23:30:00Z",
+      "duration_seconds": "5400",
+      "half_open": "Planned windows and binding intervals are half-open [start, end); a reading exactly at a window end belongs to the next window, if any.",
+      "selected_reading_id": "R-RB1",
+      "selected_reading": {
+        "reading_id": "R-RB1",
+        "meter_id": "M-RB",
+        "declared_ts": "2024-11-04T17:30:00-05:00",
+        "ts_utc": "2024-11-04T22:30:00Z",
+        "value_wh": 800,
+        "path": "readings[9]",
+        "binding_state": "unique_point",
+        "bound_point_ids": [
+          "MP-12"
+        ],
+        "attribution_ambiguous": false,
+        "active_bindings": [
+          {
+            "binding_id": "B-RB1",
+            "meter_id": "M-RB",
+            "point_id": "MP-12",
+            "scope_id": "S-12",
+            "declared_valid_from": "2024-11-01T00:00:00-04:00",
+            "declared_valid_to": "2024-11-04T18:00:00-05:00",
+            "valid_from_utc": "2024-11-01T04:00:00Z",
+            "valid_to_utc": "2024-11-04T23:00:00Z",
+            "path": "bindings[7]",
+            "raw": {
+              "binding_id": "B-RB1",
+              "meter_id": "M-RB",
+              "point_id": "MP-12",
+              "scope_id": "S-12",
+              "valid_from": "2024-11-01T00:00:00-04:00",
+              "valid_to": "2024-11-04T18:00:00-05:00"
+            }
+          }
+        ],
+        "contained_window_ids": [
+          "W-12"
+        ],
+        "candidate_window_ids": [
+          "W-12"
+        ],
+        "warnings": [],
+        "raw": {
+          "reading_id": "R-RB1",
+          "meter_id": "M-RB",
+          "ts": "2024-11-04T17:30:00-05:00",
+          "value_wh": 800
+        }
+      },
+      "candidate_reading_ids": [
+        "R-RB1"
+      ],
+      "candidate_readings": [
+        {
+          "reading_id": "R-RB1",
+          "meter_id": "M-RB",
+          "declared_ts": "2024-11-04T17:30:00-05:00",
+          "ts_utc": "2024-11-04T22:30:00Z",
+          "value_wh": 800,
+          "path": "readings[9]",
+          "binding_state": "unique_point",
+          "bound_point_ids": [
+            "MP-12"
+          ],
+          "attribution_ambiguous": false,
+          "active_bindings": [
+            {
+              "binding_id": "B-RB1",
+              "meter_id": "M-RB",
+              "point_id": "MP-12",
+              "scope_id": "S-12",
+              "declared_valid_from": "2024-11-01T00:00:00-04:00",
+              "declared_valid_to": "2024-11-04T18:00:00-05:00",
+              "valid_from_utc": "2024-11-01T04:00:00Z",
+              "valid_to_utc": "2024-11-04T23:00:00Z",
+              "path": "bindings[7]",
+              "raw": {
+                "binding_id": "B-RB1",
+                "meter_id": "M-RB",
+                "point_id": "MP-12",
+                "scope_id": "S-12",
+                "valid_from": "2024-11-01T00:00:00-04:00",
+                "valid_to": "2024-11-04T18:00:00-05:00"
+              }
+            }
+          ],
+          "contained_window_ids": [
+            "W-12"
+          ],
+          "candidate_window_ids": [
+            "W-12"
+          ],
+          "warnings": [],
+          "raw": {
+            "reading_id": "R-RB1",
+            "meter_id": "M-RB",
+            "ts": "2024-11-04T17:30:00-05:00",
+            "value_wh": 800
+          }
+        }
+      ],
+      "readings_inside_window": [
+        {
+          "reading_id": "R-RB1",
+          "meter_id": "M-RB",
+          "ts_utc": "2024-11-04T22:30:00Z",
+          "value_wh": 800,
+          "binding_state": "unique_point",
+          "bound_point_ids": [
+            "MP-12"
+          ],
+          "attribution": "candidate_for_this_window"
+        },
+        {
+          "reading_id": "R-RB2",
+          "meter_id": "M-RB",
+          "ts_utc": "2024-11-04T23:15:00Z",
+          "value_wh": 801,
+          "binding_state": "unique_point",
+          "bound_point_ids": [
+            "MP-13"
+          ],
+          "attribution": "bound_to_other_point",
+          "active_bindings": [
+            {
+              "binding_id": "B-RB2",
+              "meter_id": "M-RB",
+              "point_id": "MP-13",
+              "scope_id": "S-13",
+              "declared_valid_from": "2024-11-04T18:00:00-05:00",
+              "declared_valid_to": "2024-12-01T00:00:00-05:00",
+              "valid_from_utc": "2024-11-04T23:00:00Z",
+              "valid_to_utc": "2024-12-01T05:00:00Z",
+              "path": "bindings[8]",
+              "raw": {
+                "binding_id": "B-RB2",
+                "meter_id": "M-RB",
+                "point_id": "MP-13",
+                "scope_id": "S-13",
+                "valid_from": "2024-11-04T18:00:00-05:00",
+                "valid_to": "2024-12-01T00:00:00-05:00"
+              }
+            }
+          ]
+        }
+      ],
+      "excluded_readings_inside_window": [],
+      "issues": [],
+      "overlapping_point_bindings": [
+        {
+          "binding_id": "B-RB1",
+          "meter_id": "M-RB",
+          "point_id": "MP-12",
+          "scope_id": "S-12",
+          "declared_valid_from": "2024-11-01T00:00:00-04:00",
+          "declared_valid_to": "2024-11-04T18:00:00-05:00",
+          "valid_from_utc": "2024-11-01T04:00:00Z",
+          "valid_to_utc": "2024-11-04T23:00:00Z",
+          "overlap_start_utc": "2024-11-04T22:00:00Z",
+          "overlap_end_utc": "2024-11-04T23:00:00Z",
+          "path": "bindings[7]",
+          "raw": {
+            "binding_id": "B-RB1",
+            "meter_id": "M-RB",
+            "point_id": "MP-12",
+            "scope_id": "S-12",
+            "valid_from": "2024-11-01T00:00:00-04:00",
+            "valid_to": "2024-11-04T18:00:00-05:00"
+          }
+        }
+      ],
+      "raw": {
+        "window_id": "W-12",
+        "point_id": "MP-12",
+        "expected_from": "2024-11-04T17:00:00-05:00",
+        "expected_to": "2024-11-04T18:30:00-05:00"
+      }
+    },
+    {
+      "window_id": "W-13",
+      "point_id": "MP-13",
+      "status": "matched",
+      "status_label": "实到",
+      "status_meaning": "窗口恰有一条有效候选读数，且该读数只可能归属这一个计划窗口",
+      "expected_from": "2024-11-04T18:00:00-05:00",
+      "expected_to": "2024-11-04T19:00:00-05:00",
+      "start_utc": "2024-11-04T23:00:00Z",
+      "end_utc": "2024-11-05T00:00:00Z",
+      "duration_seconds": "3600",
+      "half_open": "Planned windows and binding intervals are half-open [start, end); a reading exactly at a window end belongs to the next window, if any.",
+      "selected_reading_id": "R-RB2",
+      "selected_reading": {
+        "reading_id": "R-RB2",
+        "meter_id": "M-RB",
+        "declared_ts": "2024-11-04T18:15:00-05:00",
+        "ts_utc": "2024-11-04T23:15:00Z",
+        "value_wh": 801,
+        "path": "readings[10]",
+        "binding_state": "unique_point",
+        "bound_point_ids": [
+          "MP-13"
+        ],
+        "attribution_ambiguous": false,
+        "active_bindings": [
+          {
+            "binding_id": "B-RB2",
+            "meter_id": "M-RB",
+            "point_id": "MP-13",
+            "scope_id": "S-13",
+            "declared_valid_from": "2024-11-04T18:00:00-05:00",
+            "declared_valid_to": "2024-12-01T00:00:00-05:00",
+            "valid_from_utc": "2024-11-04T23:00:00Z",
+            "valid_to_utc": "2024-12-01T05:00:00Z",
+            "path": "bindings[8]",
+            "raw": {
+              "binding_id": "B-RB2",
+              "meter_id": "M-RB",
+              "point_id": "MP-13",
+              "scope_id": "S-13",
+              "valid_from": "2024-11-04T18:00:00-05:00",
+              "valid_to": "2024-12-01T00:00:00-05:00"
+            }
+          }
+        ],
+        "contained_window_ids": [
+          "W-12",
+          "W-13"
+        ],
+        "candidate_window_ids": [
+          "W-13"
+        ],
+        "warnings": [],
+        "raw": {
+          "reading_id": "R-RB2",
+          "meter_id": "M-RB",
+          "ts": "2024-11-04T18:15:00-05:00",
+          "value_wh": 801
+        }
+      },
+      "candidate_reading_ids": [
+        "R-RB2"
+      ],
+      "candidate_readings": [
+        {
+          "reading_id": "R-RB2",
+          "meter_id": "M-RB",
+          "declared_ts": "2024-11-04T18:15:00-05:00",
+          "ts_utc": "2024-11-04T23:15:00Z",
+          "value_wh": 801,
+          "path": "readings[10]",
+          "binding_state": "unique_point",
+          "bound_point_ids": [
+            "MP-13"
+          ],
+          "attribution_ambiguous": false,
+          "active_bindings": [
+            {
+              "binding_id": "B-RB2",
+              "meter_id": "M-RB",
+              "point_id": "MP-13",
+              "scope_id": "S-13",
+              "declared_valid_from": "2024-11-04T18:00:00-05:00",
+              "declared_valid_to": "2024-12-01T00:00:00-05:00",
+              "valid_from_utc": "2024-11-04T23:00:00Z",
+              "valid_to_utc": "2024-12-01T05:00:00Z",
+              "path": "bindings[8]",
+              "raw": {
+                "binding_id": "B-RB2",
+                "meter_id": "M-RB",
+                "point_id": "MP-13",
+                "scope_id": "S-13",
+                "valid_from": "2024-11-04T18:00:00-05:00",
+                "valid_to": "2024-12-01T00:00:00-05:00"
+              }
+            }
+          ],
+          "contained_window_ids": [
+            "W-12",
+            "W-13"
+          ],
+          "candidate_window_ids": [
+            "W-13"
+          ],
+          "warnings": [],
+          "raw": {
+            "reading_id": "R-RB2",
+            "meter_id": "M-RB",
+            "ts": "2024-11-04T18:15:00-05:00",
+            "value_wh": 801
+          }
+        }
+      ],
+      "readings_inside_window": [
+        {
+          "reading_id": "R-RB2",
+          "meter_id": "M-RB",
+          "ts_utc": "2024-11-04T23:15:00Z",
+          "value_wh": 801,
+          "binding_state": "unique_point",
+          "bound_point_ids": [
+            "MP-13"
+          ],
+          "attribution": "candidate_for_this_window"
+        }
+      ],
+      "excluded_readings_inside_window": [],
+      "issues": [],
+      "overlapping_point_bindings": [
+        {
+          "binding_id": "B-RB2",
+          "meter_id": "M-RB",
+          "point_id": "MP-13",
+          "scope_id": "S-13",
+          "declared_valid_from": "2024-11-04T18:00:00-05:00",
+          "declared_valid_to": "2024-12-01T00:00:00-05:00",
+          "valid_from_utc": "2024-11-04T23:00:00Z",
+          "valid_to_utc": "2024-12-01T05:00:00Z",
+          "overlap_start_utc": "2024-11-04T23:00:00Z",
+          "overlap_end_utc": "2024-11-05T00:00:00Z",
+          "path": "bindings[8]",
+          "raw": {
+            "binding_id": "B-RB2",
+            "meter_id": "M-RB",
+            "point_id": "MP-13",
+            "scope_id": "S-13",
+            "valid_from": "2024-11-04T18:00:00-05:00",
+            "valid_to": "2024-12-01T00:00:00-05:00"
+          }
+        }
+      ],
+      "raw": {
+        "window_id": "W-13",
+        "point_id": "MP-13",
+        "expected_from": "2024-11-04T18:00:00-05:00",
+        "expected_to": "2024-11-04T19:00:00-05:00"
+      }
+    },
+    {
+      "window_id": "W-14",
+      "point_id": "MP-15",
+      "status": "missed",
+      "status_label": "漏采",
+      "status_meaning": "窗口没有任何有效候选读数",
+      "expected_from": "2024-11-04T19:00:00+00:00",
+      "expected_to": "2024-11-04T20:00:00+00:00",
+      "start_utc": "2024-11-04T19:00:00Z",
+      "end_utc": "2024-11-04T20:00:00Z",
+      "duration_seconds": "3600",
+      "half_open": "Planned windows and binding intervals are half-open [start, end); a reading exactly at a window end belongs to the next window, if any.",
+      "selected_reading_id": null,
+      "selected_reading": null,
+      "candidate_reading_ids": [],
+      "candidate_readings": [],
+      "readings_inside_window": [],
+      "excluded_readings_inside_window": [
+        {
+          "reading_id": "R-VOID-1",
+          "meter_id": "M-E",
+          "ts_utc": "2024-11-04T19:10:00Z",
+          "value_wh": 42,
+          "exclusion_reason": "reading_marked_void",
+          "path": "readings[12]",
+          "raw": {
+            "reading_id": "R-VOID-1",
+            "meter_id": "M-E",
+            "status": "void",
+            "ts": "2024-11-04T19:10:00+00:00",
+            "value_wh": 42
+          }
+        }
+      ],
+      "issues": [
+        {
+          "code": "no_candidate_reading",
+          "message": "no reading both falls inside the window and is bound to the window point at its instant"
+        }
+      ],
+      "overlapping_point_bindings": [
+        {
+          "binding_id": "B-E",
+          "meter_id": "M-E",
+          "point_id": "MP-15",
+          "scope_id": "S-15",
+          "declared_valid_from": "2024-11-01T00:00:00-04:00",
+          "declared_valid_to": "2024-12-01T00:00:00-05:00",
+          "valid_from_utc": "2024-11-01T04:00:00Z",
+          "valid_to_utc": "2024-12-01T05:00:00Z",
+          "overlap_start_utc": "2024-11-04T19:00:00Z",
+          "overlap_end_utc": "2024-11-04T20:00:00Z",
+          "path": "bindings[9]",
+          "raw": {
+            "binding_id": "B-E",
+            "meter_id": "M-E",
+            "point_id": "MP-15",
+            "scope_id": "S-15",
+            "valid_from": "2024-11-01T00:00:00-04:00",
+            "valid_to": "2024-12-01T00:00:00-05:00"
+          }
+        }
+      ],
+      "raw": {
+        "window_id": "W-14",
+        "point_id": "MP-15",
+        "expected_from": "2024-11-04T19:00:00+00:00",
+        "expected_to": "2024-11-04T20:00:00+00:00"
+      }
+    },
+    {
+      "window_id": "W-15",
+      "point_id": "MP-16",
+      "status": "missed",
+      "status_label": "漏采",
+      "status_meaning": "窗口没有任何有效候选读数",
+      "expected_from": "2024-11-06T00:00:00+00:00",
+      "expected_to": "2024-11-06T01:00:00+00:00",
+      "start_utc": "2024-11-06T00:00:00Z",
+      "end_utc": "2024-11-06T01:00:00Z",
+      "duration_seconds": "3600",
+      "half_open": "Planned windows and binding intervals are half-open [start, end); a reading exactly at a window end belongs to the next window, if any.",
+      "selected_reading_id": null,
+      "selected_reading": null,
+      "candidate_reading_ids": [],
+      "candidate_readings": [],
+      "readings_inside_window": [],
+      "excluded_readings_inside_window": [],
+      "issues": [
+        {
+          "code": "no_candidate_reading",
+          "message": "no reading both falls inside the window and is bound to the window point at its instant"
+        }
+      ],
+      "overlapping_point_bindings": [],
+      "raw": {
+        "window_id": "W-15",
+        "point_id": "MP-16",
+        "expected_from": "2024-11-06T00:00:00+00:00",
+        "expected_to": "2024-11-06T01:00:00+00:00"
+      }
+    }
+  ],
+  "unmatched_readings": [
+    {
+      "reading_id": "R-S1",
+      "meter_id": "M-S",
+      "declared_ts": "2024-11-04T10:30:00+00:00",
+      "ts_utc": "2024-11-04T10:30:00Z",
+      "value_wh": 200,
+      "path": "readings[2]",
+      "binding_state": "unique_point",
+      "bound_point_ids": [
+        "MP-05"
+      ],
+      "attribution_ambiguous": false,
+      "active_bindings": [
+        {
+          "binding_id": "B-S",
+          "meter_id": "M-S",
+          "point_id": "MP-05",
+          "scope_id": "S-05",
+          "declared_valid_from": "2024-11-01T00:00:00-04:00",
+          "declared_valid_to": "2024-12-01T00:00:00-05:00",
+          "valid_from_utc": "2024-11-01T04:00:00Z",
+          "valid_to_utc": "2024-12-01T05:00:00Z",
+          "path": "bindings[1]",
+          "raw": {
+            "binding_id": "B-S",
+            "meter_id": "M-S",
+            "point_id": "MP-05",
+            "scope_id": "S-05",
+            "valid_from": "2024-11-01T00:00:00-04:00",
+            "valid_to": "2024-12-01T00:00:00-05:00"
+          }
+        }
+      ],
+      "contained_window_ids": [
+        "W-04",
+        "W-05"
+      ],
+      "candidate_window_ids": [
+        "W-04",
+        "W-05"
+      ],
+      "warnings": [],
+      "raw": {
+        "reading_id": "R-S1",
+        "meter_id": "M-S",
+        "ts": "2024-11-04T10:30:00+00:00",
+        "value_wh": 200
+      },
+      "reason": "candidate_but_not_uniquely_assigned",
+      "reason_detail": "the reading is eligible for more than one window, or its window is not uniquely resolvable",
+      "candidate_window_statuses": {
+        "W-04": "pending_review",
+        "W-05": "pending_review"
+      }
+    },
+    {
+      "reading_id": "R-M1",
+      "meter_id": "M-M",
+      "declared_ts": "2024-11-04T12:10:00+00:00",
+      "ts_utc": "2024-11-04T12:10:00Z",
+      "value_wh": 300,
+      "path": "readings[3]",
+      "binding_state": "unique_point",
+      "bound_point_ids": [
+        "MP-06"
+      ],
+      "attribution_ambiguous": false,
+      "active_bindings": [
+        {
+          "binding_id": "B-M",
+          "meter_id": "M-M",
+          "point_id": "MP-06",
+          "scope_id": "S-06",
+          "declared_valid_from": "2024-11-01T00:00:00-04:00",
+          "declared_valid_to": "2024-12-01T00:00:00-05:00",
+          "valid_from_utc": "2024-11-01T04:00:00Z",
+          "valid_to_utc": "2024-12-01T05:00:00Z",
+          "path": "bindings[2]",
+          "raw": {
+            "binding_id": "B-M",
+            "meter_id": "M-M",
+            "point_id": "MP-06",
+            "scope_id": "S-06",
+            "valid_from": "2024-11-01T00:00:00-04:00",
+            "valid_to": "2024-12-01T00:00:00-05:00"
+          }
+        }
+      ],
+      "contained_window_ids": [
+        "W-06"
+      ],
+      "candidate_window_ids": [
+        "W-06"
+      ],
+      "warnings": [
+        {
+          "code": "declared_point_differs_from_binding",
+          "severity": "warning",
+          "message": "reading row declares a point that differs from its effective binding; binding evidence governs",
+          "declared_point_id": "MP-OTHER",
+          "bound_point_ids": [
+            "MP-06"
+          ]
+        }
+      ],
+      "raw": {
+        "reading_id": "R-M1",
+        "meter_id": "M-M",
+        "point_id": "MP-OTHER",
+        "ts": "2024-11-04T12:10:00+00:00",
+        "value_wh": 300
+      },
+      "reason": "candidate_but_not_uniquely_assigned",
+      "reason_detail": "the reading is eligible for more than one window, or its window is not uniquely resolvable",
+      "candidate_window_statuses": {
+        "W-06": "pending_review"
+      }
+    },
+    {
+      "reading_id": "R-M2",
+      "meter_id": "M-M",
+      "declared_ts": "2024-11-04T12:50:00+00:00",
+      "ts_utc": "2024-11-04T12:50:00Z",
+      "value_wh": 301,
+      "path": "readings[4]",
+      "binding_state": "unique_point",
+      "bound_point_ids": [
+        "MP-06"
+      ],
+      "attribution_ambiguous": false,
+      "active_bindings": [
+        {
+          "binding_id": "B-M",
+          "meter_id": "M-M",
+          "point_id": "MP-06",
+          "scope_id": "S-06",
+          "declared_valid_from": "2024-11-01T00:00:00-04:00",
+          "declared_valid_to": "2024-12-01T00:00:00-05:00",
+          "valid_from_utc": "2024-11-01T04:00:00Z",
+          "valid_to_utc": "2024-12-01T05:00:00Z",
+          "path": "bindings[2]",
+          "raw": {
+            "binding_id": "B-M",
+            "meter_id": "M-M",
+            "point_id": "MP-06",
+            "scope_id": "S-06",
+            "valid_from": "2024-11-01T00:00:00-04:00",
+            "valid_to": "2024-12-01T00:00:00-05:00"
+          }
+        }
+      ],
+      "contained_window_ids": [
+        "W-06"
+      ],
+      "candidate_window_ids": [
+        "W-06"
+      ],
+      "warnings": [],
+      "raw": {
+        "reading_id": "R-M2",
+        "meter_id": "M-M",
+        "ts": "2024-11-04T12:50:00+00:00",
+        "value_wh": 301
+      },
+      "reason": "candidate_but_not_uniquely_assigned",
+      "reason_detail": "the reading is eligible for more than one window, or its window is not uniquely resolvable",
+      "candidate_window_statuses": {
+        "W-06": "pending_review"
+      }
+    },
+    {
+      "reading_id": "R-N1",
+      "meter_id": "M-N",
+      "declared_ts": "2024-11-04T14:20:00+00:00",
+      "ts_utc": "2024-11-04T14:20:00Z",
+      "value_wh": 400,
+      "path": "readings[5]",
+      "binding_state": "no_active_binding",
+      "bound_point_ids": [],
+      "attribution_ambiguous": false,
+      "active_bindings": [],
+      "contained_window_ids": [
+        "W-07"
+      ],
+      "candidate_window_ids": [],
+      "warnings": [],
+      "raw": {
+        "reading_id": "R-N1",
+        "meter_id": "M-N",
+        "ts": "2024-11-04T14:20:00+00:00",
+        "value_wh": 400
+      },
+      "reason": "no_effective_binding_at_reading_time",
+      "reason_detail": "no valid binding row covers this meter at the reading instant",
+      "candidate_window_statuses": {}
+    },
+    {
+      "reading_id": "R-D1",
+      "meter_id": "M-D",
+      "declared_ts": "2024-11-04T16:20:00+00:00",
+      "ts_utc": "2024-11-04T16:20:00Z",
+      "value_wh": 500,
+      "path": "readings[6]",
+      "binding_state": "unique_point",
+      "bound_point_ids": [
+        "MP-99"
+      ],
+      "attribution_ambiguous": false,
+      "active_bindings": [
+        {
+          "binding_id": "B-D",
+          "meter_id": "M-D",
+          "point_id": "MP-99",
+          "scope_id": "S-99",
+          "declared_valid_from": "2024-11-01T00:00:00-04:00",
+          "declared_valid_to": "2024-12-01T00:00:00-05:00",
+          "valid_from_utc": "2024-11-01T04:00:00Z",
+          "valid_to_utc": "2024-12-01T05:00:00Z",
+          "path": "bindings[3]",
+          "raw": {
+            "binding_id": "B-D",
+            "meter_id": "M-D",
+            "point_id": "MP-99",
+            "scope_id": "S-99",
+            "valid_from": "2024-11-01T00:00:00-04:00",
+            "valid_to": "2024-12-01T00:00:00-05:00"
+          }
+        }
+      ],
+      "contained_window_ids": [
+        "W-08"
+      ],
+      "candidate_window_ids": [],
+      "warnings": [],
+      "raw": {
+        "reading_id": "R-D1",
+        "meter_id": "M-D",
+        "ts": "2024-11-04T16:20:00+00:00",
+        "value_wh": 500
+      },
+      "reason": "binding_point_not_in_containing_window",
+      "reason_detail": "the reading is inside a planned window, but its bound point is not the window point",
+      "candidate_window_statuses": {}
+    },
+    {
+      "reading_id": "R-AMB1",
+      "meter_id": "M-AMB",
+      "declared_ts": "2024-11-04T18:20:00+00:00",
+      "ts_utc": "2024-11-04T18:20:00Z",
+      "value_wh": 600,
+      "path": "readings[7]",
+      "binding_state": "ambiguous_binding",
+      "bound_point_ids": [
+        "MP-09",
+        "MP-99"
+      ],
+      "attribution_ambiguous": true,
+      "active_bindings": [
+        {
+          "binding_id": "B-AMB1",
+          "meter_id": "M-AMB",
+          "point_id": "MP-09",
+          "scope_id": "S-09",
+          "declared_valid_from": "2024-11-01T00:00:00-04:00",
+          "declared_valid_to": "2024-12-01T00:00:00-05:00",
+          "valid_from_utc": "2024-11-01T04:00:00Z",
+          "valid_to_utc": "2024-12-01T05:00:00Z",
+          "path": "bindings[4]",
+          "raw": {
+            "binding_id": "B-AMB1",
+            "meter_id": "M-AMB",
+            "point_id": "MP-09",
+            "scope_id": "S-09",
+            "valid_from": "2024-11-01T00:00:00-04:00",
+            "valid_to": "2024-12-01T00:00:00-05:00"
+          }
+        },
+        {
+          "binding_id": "B-AMB2",
+          "meter_id": "M-AMB",
+          "point_id": "MP-99",
+          "scope_id": "S-99",
+          "declared_valid_from": "2024-11-01T00:00:00-04:00",
+          "declared_valid_to": "2024-12-01T00:00:00-05:00",
+          "valid_from_utc": "2024-11-01T04:00:00Z",
+          "valid_to_utc": "2024-12-01T05:00:00Z",
+          "path": "bindings[5]",
+          "raw": {
+            "binding_id": "B-AMB2",
+            "meter_id": "M-AMB",
+            "point_id": "MP-99",
+            "scope_id": "S-99",
+            "valid_from": "2024-11-01T00:00:00-04:00",
+            "valid_to": "2024-12-01T00:00:00-05:00"
+          }
+        }
+      ],
+      "contained_window_ids": [
+        "W-09"
+      ],
+      "candidate_window_ids": [
+        "W-09"
+      ],
+      "warnings": [],
+      "raw": {
+        "reading_id": "R-AMB1",
+        "meter_id": "M-AMB",
+        "ts": "2024-11-04T18:20:00+00:00",
+        "value_wh": 600
+      },
+      "reason": "ambiguous_binding_at_reading_time",
+      "reason_detail": "multiple active bindings map this meter to different points at the reading instant",
+      "candidate_window_statuses": {
+        "W-09": "pending_review"
+      }
+    },
+    {
+      "reading_id": "R-OUTSIDE",
+      "meter_id": "M-A",
+      "declared_ts": "2024-11-07T12:00:00+00:00",
+      "ts_utc": "2024-11-07T12:00:00Z",
+      "value_wh": 900,
+      "path": "readings[11]",
+      "binding_state": "unique_point",
+      "bound_point_ids": [
+        "MP-01"
+      ],
+      "attribution_ambiguous": false,
+      "active_bindings": [
+        {
+          "binding_id": "B-A",
+          "meter_id": "M-A",
+          "point_id": "MP-01",
+          "scope_id": "S-01",
+          "declared_valid_from": "2024-11-01T00:00:00-04:00",
+          "declared_valid_to": "2024-12-01T00:00:00-05:00",
+          "valid_from_utc": "2024-11-01T04:00:00Z",
+          "valid_to_utc": "2024-12-01T05:00:00Z",
+          "path": "bindings[0]",
+          "raw": {
+            "binding_id": "B-A",
+            "meter_id": "M-A",
+            "point_id": "MP-01",
+            "scope_id": "S-01",
+            "valid_from": "2024-11-01T00:00:00-04:00",
+            "valid_to": "2024-12-01T00:00:00-05:00"
+          }
+        }
+      ],
+      "contained_window_ids": [],
+      "candidate_window_ids": [],
+      "warnings": [],
+      "raw": {
+        "reading_id": "R-OUTSIDE",
+        "meter_id": "M-A",
+        "ts": "2024-11-07T12:00:00+00:00",
+        "value_wh": 900
+      },
+      "reason": "not_inside_any_planned_window",
+      "reason_detail": "the reading instant is outside every planned window",
+      "candidate_window_statuses": {}
+    }
+  ],
+  "excluded_readings": [
+    {
+      "reading_id": "R-VOID-1",
+      "path": "readings[12]",
+      "reason": "reading_marked_void",
+      "raw": {
+        "reading_id": "R-VOID-1",
+        "meter_id": "M-E",
+        "status": "void",
+        "ts": "2024-11-04T19:10:00+00:00",
+        "value_wh": 42
+      }
+    }
+  ],
+  "excluded_bindings": [
+    {
+      "binding_id": "B-REVOKED",
+      "path": "bindings[10]",
+      "reason": "binding_marked_invalid_or_void",
+      "status": "valid",
+      "raw": {
+        "binding_id": "B-REVOKED",
+        "meter_id": "M-X",
+        "point_id": "MP-XX",
+        "scope_id": "S-XX",
+        "valid": false,
+        "valid_from": "2024-11-01T00:00:00-04:00",
+        "valid_to": "2024-12-01T00:00:00-05:00"
+      }
+    }
+  ],
+  "bindings_considered": [
+    {
+      "binding_id": "B-A",
+      "meter_id": "M-A",
+      "point_id": "MP-01",
+      "scope_id": "S-01",
+      "declared_valid_from": "2024-11-01T00:00:00-04:00",
+      "declared_valid_to": "2024-12-01T00:00:00-05:00",
+      "valid_from_utc": "2024-11-01T04:00:00Z",
+      "valid_to_utc": "2024-12-01T05:00:00Z",
+      "path": "bindings[0]",
+      "raw": {
+        "binding_id": "B-A",
+        "meter_id": "M-A",
+        "point_id": "MP-01",
+        "scope_id": "S-01",
+        "valid_from": "2024-11-01T00:00:00-04:00",
+        "valid_to": "2024-12-01T00:00:00-05:00"
+      }
+    },
+    {
+      "binding_id": "B-S",
+      "meter_id": "M-S",
+      "point_id": "MP-05",
+      "scope_id": "S-05",
+      "declared_valid_from": "2024-11-01T00:00:00-04:00",
+      "declared_valid_to": "2024-12-01T00:00:00-05:00",
+      "valid_from_utc": "2024-11-01T04:00:00Z",
+      "valid_to_utc": "2024-12-01T05:00:00Z",
+      "path": "bindings[1]",
+      "raw": {
+        "binding_id": "B-S",
+        "meter_id": "M-S",
+        "point_id": "MP-05",
+        "scope_id": "S-05",
+        "valid_from": "2024-11-01T00:00:00-04:00",
+        "valid_to": "2024-12-01T00:00:00-05:00"
+      }
+    },
+    {
+      "binding_id": "B-M",
+      "meter_id": "M-M",
+      "point_id": "MP-06",
+      "scope_id": "S-06",
+      "declared_valid_from": "2024-11-01T00:00:00-04:00",
+      "declared_valid_to": "2024-12-01T00:00:00-05:00",
+      "valid_from_utc": "2024-11-01T04:00:00Z",
+      "valid_to_utc": "2024-12-01T05:00:00Z",
+      "path": "bindings[2]",
+      "raw": {
+        "binding_id": "B-M",
+        "meter_id": "M-M",
+        "point_id": "MP-06",
+        "scope_id": "S-06",
+        "valid_from": "2024-11-01T00:00:00-04:00",
+        "valid_to": "2024-12-01T00:00:00-05:00"
+      }
+    },
+    {
+      "binding_id": "B-D",
+      "meter_id": "M-D",
+      "point_id": "MP-99",
+      "scope_id": "S-99",
+      "declared_valid_from": "2024-11-01T00:00:00-04:00",
+      "declared_valid_to": "2024-12-01T00:00:00-05:00",
+      "valid_from_utc": "2024-11-01T04:00:00Z",
+      "valid_to_utc": "2024-12-01T05:00:00Z",
+      "path": "bindings[3]",
+      "raw": {
+        "binding_id": "B-D",
+        "meter_id": "M-D",
+        "point_id": "MP-99",
+        "scope_id": "S-99",
+        "valid_from": "2024-11-01T00:00:00-04:00",
+        "valid_to": "2024-12-01T00:00:00-05:00"
+      }
+    },
+    {
+      "binding_id": "B-AMB1",
+      "meter_id": "M-AMB",
+      "point_id": "MP-09",
+      "scope_id": "S-09",
+      "declared_valid_from": "2024-11-01T00:00:00-04:00",
+      "declared_valid_to": "2024-12-01T00:00:00-05:00",
+      "valid_from_utc": "2024-11-01T04:00:00Z",
+      "valid_to_utc": "2024-12-01T05:00:00Z",
+      "path": "bindings[4]",
+      "raw": {
+        "binding_id": "B-AMB1",
+        "meter_id": "M-AMB",
+        "point_id": "MP-09",
+        "scope_id": "S-09",
+        "valid_from": "2024-11-01T00:00:00-04:00",
+        "valid_to": "2024-12-01T00:00:00-05:00"
+      }
+    },
+    {
+      "binding_id": "B-AMB2",
+      "meter_id": "M-AMB",
+      "point_id": "MP-99",
+      "scope_id": "S-99",
+      "declared_valid_from": "2024-11-01T00:00:00-04:00",
+      "declared_valid_to": "2024-12-01T00:00:00-05:00",
+      "valid_from_utc": "2024-11-01T04:00:00Z",
+      "valid_to_utc": "2024-12-01T05:00:00Z",
+      "path": "bindings[5]",
+      "raw": {
+        "binding_id": "B-AMB2",
+        "meter_id": "M-AMB",
+        "point_id": "MP-99",
+        "scope_id": "S-99",
+        "valid_from": "2024-11-01T00:00:00-04:00",
+        "valid_to": "2024-12-01T00:00:00-05:00"
+      }
+    },
+    {
+      "binding_id": "B-B",
+      "meter_id": "M-B",
+      "point_id": "MP-10",
+      "scope_id": "S-10",
+      "declared_valid_from": "2024-11-01T00:00:00-04:00",
+      "declared_valid_to": "2024-12-01T00:00:00-05:00",
+      "valid_from_utc": "2024-11-01T04:00:00Z",
+      "valid_to_utc": "2024-12-01T05:00:00Z",
+      "path": "bindings[6]",
+      "raw": {
+        "binding_id": "B-B",
+        "meter_id": "M-B",
+        "point_id": "MP-10",
+        "scope_id": "S-10",
+        "valid_from": "2024-11-01T00:00:00-04:00",
+        "valid_to": "2024-12-01T00:00:00-05:00"
+      }
+    },
+    {
+      "binding_id": "B-RB1",
+      "meter_id": "M-RB",
+      "point_id": "MP-12",
+      "scope_id": "S-12",
+      "declared_valid_from": "2024-11-01T00:00:00-04:00",
+      "declared_valid_to": "2024-11-04T18:00:00-05:00",
+      "valid_from_utc": "2024-11-01T04:00:00Z",
+      "valid_to_utc": "2024-11-04T23:00:00Z",
+      "path": "bindings[7]",
+      "raw": {
+        "binding_id": "B-RB1",
+        "meter_id": "M-RB",
+        "point_id": "MP-12",
+        "scope_id": "S-12",
+        "valid_from": "2024-11-01T00:00:00-04:00",
+        "valid_to": "2024-11-04T18:00:00-05:00"
+      }
+    },
+    {
+      "binding_id": "B-RB2",
+      "meter_id": "M-RB",
+      "point_id": "MP-13",
+      "scope_id": "S-13",
+      "declared_valid_from": "2024-11-04T18:00:00-05:00",
+      "declared_valid_to": "2024-12-01T00:00:00-05:00",
+      "valid_from_utc": "2024-11-04T23:00:00Z",
+      "valid_to_utc": "2024-12-01T05:00:00Z",
+      "path": "bindings[8]",
+      "raw": {
+        "binding_id": "B-RB2",
+        "meter_id": "M-RB",
+        "point_id": "MP-13",
+        "scope_id": "S-13",
+        "valid_from": "2024-11-04T18:00:00-05:00",
+        "valid_to": "2024-12-01T00:00:00-05:00"
+      }
+    },
+    {
+      "binding_id": "B-E",
+      "meter_id": "M-E",
+      "point_id": "MP-15",
+      "scope_id": "S-15",
+      "declared_valid_from": "2024-11-01T00:00:00-04:00",
+      "declared_valid_to": "2024-12-01T00:00:00-05:00",
+      "valid_from_utc": "2024-11-01T04:00:00Z",
+      "valid_to_utc": "2024-12-01T05:00:00Z",
+      "path": "bindings[9]",
+      "raw": {
+        "binding_id": "B-E",
+        "meter_id": "M-E",
+        "point_id": "MP-15",
+        "scope_id": "S-15",
+        "valid_from": "2024-11-01T00:00:00-04:00",
+        "valid_to": "2024-12-01T00:00:00-05:00"
+      }
+    }
+  ]
+}

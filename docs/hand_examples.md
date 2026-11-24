@@ -198,3 +198,66 @@ components[component_id=R006].evidence.hall_witness
 - `M-AMB` 同时有两个有效绑定，程序不选择其中一个，而是在 `R001` 输出 `ambiguous_binding`，并连接两个候选 scope 的控制格。
 
 其他无问题的连通范围仍为 `settled`，这就是样例总状态 `partial_settlement` 的含义。
+
+## 5. 计划采集窗口核对
+
+样例见 `examples/reconciliation_input.json`，输出 `examples/reconciliation_result.json` 与 `examples/reconciliation_slices.csv`。所有时刻先换算成 UTC，再判定半开区间归属。
+
+### 5.1 夏令时重复墙钟：两个 `01:30` 分属两个窗口
+
+- `R-A1 = 2024-11-03T01:30:00-04:00 = 05:30Z`
+- `R-A2 = 2024-11-03T01:30:00-05:00 = 06:30Z`
+
+窗口 `W-01 = [05:00Z, 05:45Z)` 只含 `R-A1`；窗口 `W-02 = [05:45Z, 07:00Z)` 只含 `R-A2`。两条读数各只有一个候选且互不共享，因此均为 `matched`：
+
+| 窗口 | UTC 区间 | 候选 | 结果 |
+|---|---|---|---|
+| `W-01` | `[05:00Z, 05:45Z)` | `R-A1` | `matched` |
+| `W-02` | `[05:45Z, 07:00Z)` | `R-A2` | `matched` |
+
+若把两个 `01:30` 当成同一时刻，就会误判为“一个窗口两条候选、另一个漏采”。
+
+### 5.2 半开区间：结束时刻不属于本窗口
+
+`W-02` 的结束是 `02:00:00-05:00 = 07:00Z`。`W-03 = [08:00Z, 09:00Z)` 内没有任何读数，标 `missed`。窗口结束瞬间的读数只会进入下一个窗口；若它正好是最后一个窗口的结束时刻，该读数进入 `unmatched_readings`，原因 `not_inside_any_planned_window`。
+
+### 5.3 一条读数被两个窗口共享：两个窗口都待核
+
+`R-S1 = 10:30Z`，窗口
+
+- `W-04 = [10:00Z, 11:00Z)`
+- `W-05 = [10:30Z, 11:30Z)`
+
+`R-S1` 同时落在两个窗口内，且两个窗口的 `point_id` 都是 `MP-05`。程序不按“离哪个窗口中心更近”挑选，而是把 `W-04`、`W-05` 都标为 `pending_review`，问题代码 `reading_shared_across_windows`，并在 `R-S1` 的未匹配记录里列出它对两个窗口的候选状态。
+
+### 5.4 一个窗口多条候选：待核，不挑最近
+
+`W-06 = [12:00Z, 13:00Z)` 内有 `R-M1 = 12:10Z`、`R-M2 = 12:50Z`，同一表计 `M-M` 有效绑定到 `MP-06`。窗口有 2 条候选，标 `pending_review`，问题代码 `multiple_candidate_readings`；`selected_reading_id` 为空。即使 `R-M2` 更靠近窗口结束，也不会被自动选中。
+
+### 5.5 漏采与“无法归属”的区分
+
+`W-07 = [14:00Z, 15:00Z)` 内有 `R-N1 = 14:20Z`，但 `M-N` 在该时刻没有任何有效绑定。窗口仍标 `missed`（没有候选读数），同时：
+
+- 窗口的 `readings_inside_window` 列出 `R-N1`，`attribution = no_effective_binding_at_reading_time`；
+- `R-N1` 进入 `unmatched_readings`，`reason = no_effective_binding_at_reading_time`。
+
+`W-08 = [16:00Z, 17:00Z)` 内有 `R-D1`，但 `M-D` 当时绑定到 `MP-99` 而非窗口的 `MP-08`，因此窗口 `missed`，`R-D1` 的未匹配原因 `binding_point_not_in_containing_window`。这说明“窗口内确实有读数但无法归到这个计量点”与“窗口内什么都没有”在证据上可区分，但都不算实到。
+
+### 5.6 绑定在窗口内换段：按读数时刻判定
+
+`B-RB1` 有效到 `18:00:00-05:00 = 23:00Z`，`B-RB2` 从 `23:00Z` 起绑定 `MP-13`：
+
+- `R-RB1 = 17:30:00-05:00 = 22:30Z` → 绑定 `MP-12` → 命中窗口 `W-12 = [22:00Z, 23:30Z)`；
+- `R-RB2 = 18:15:00-05:00 = 23:15Z` → 绑定 `MP-13` → 命中窗口 `W-13 = [23:00Z, 00:00Z)`。
+
+可见同一条读数只看**它自己时刻**的有效绑定，而不是窗口起点或终点时刻的绑定。
+
+### 5.7 绑定歧义与排除记录
+
+`R-AMB1` 在 `18:20Z` 同时有两个有效绑定（`MP-09`、`MP-99`）。窗口 `W-09` 的计量点是 `MP-09`，该读数虽在窗口内，但归属不唯一，窗口标 `pending_review`，问题代码 `ambiguous_binding_at_reading_time`，未匹配原因同名。
+
+`R-VOID-1` 状态为 `void`，列出在 `excluded_readings`，并且因时间落在 `W-14` 内，也出现在该窗口的 `excluded_readings_inside_window`；它不参与候选，因此 `W-14` 仍是 `missed`。`B-REVOKED` 的 `valid: false`，列出在 `excluded_bindings`，不参与任何归属。
+
+### 5.8 汇总
+
+样例 15 个窗口：实到 5、待核 4、漏采 6；有效读数 12 条，被选中 5 条，未匹配 7 条；排除读数 1 条、排除绑定 1 条。总状态 `attention_required`，因为存在待核或漏采窗口。结算完全不受影响：同一输入不传 `--reconcile` 时输出与既有结算结果一致。

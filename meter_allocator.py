@@ -15,7 +15,7 @@ import argparse
 import hashlib
 import json
 import sys
-from collections import defaultdict, deque
+from collections import Counter, defaultdict, deque
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta, timezone
 from fractions import Fraction
@@ -1899,6 +1899,736 @@ def write_slices_csv(report: dict, path: Path) -> None:
             })
 
 
+# ---------------------------------------------------------------------------
+# Planned collection-window reconciliation
+# ---------------------------------------------------------------------------
+#
+# This section is independent from the settlement pipeline above.  It audits
+# planned collection windows against actual readings and the binding rows that
+# were effective at each reading instant.  It does not require tariffs or
+# control totals, does not alter any settlement result, and never selects a
+# reading by nearest time.
+
+RECONCILIATION_RULE_VERSION = "planned-window-reconciliation-1.0.0"
+WINDOW_HALF_OPEN_NOTE = (
+    "Planned windows and binding intervals are half-open [start, end); "
+    "a reading exactly at a window end belongs to the next window, if any."
+)
+RECONCILIATION_STATUS_LABELS = {
+    "matched": "实到",
+    "pending_review": "待核",
+    "missed": "漏采",
+}
+RECONCILIATION_STATUS_MEANINGS = {
+    "matched": "窗口恰有一条有效候选读数，且该读数只可能归属这一个计划窗口",
+    "pending_review": "窗口有多条候选读数，或读数/窗口归属不能唯一判定；不做静默挑选",
+    "missed": "窗口没有任何有效候选读数",
+}
+RECONCILIATION_MATCHING_RULE = (
+    "A reading is eligible for a window only if its UTC instant is inside the "
+    "half-open window AND at that instant the reading's meter has a valid binding "
+    "whose point_id equals the window point_id. A reading whose active bindings name "
+    "several points is eligible for each of those points' windows but is never "
+    "selected, because its attribution is ambiguous. A window with two or more "
+    "eligible readings, or with an ambiguous-binding reading, is pending_review. A "
+    "window with exactly one unambiguous eligible reading is matched only when that "
+    "reading is eligible for no other window; otherwise every window sharing the "
+    "reading is pending_review. A window with no eligible reading is missed. A "
+    "reading can be selected for at most one window. Nearest-time selection is "
+    "never performed."
+)
+WINDOW_START_KEYS = (
+    "expected_from", "expected_start", "planned_from", "window_from", "start", "from",
+)
+WINDOW_END_KEYS = (
+    "expected_to", "expected_end", "planned_to", "window_to", "end", "to",
+)
+POINT_KEYS = ("point_id", "metering_point_id", "metering_point")
+METER_KEYS = ("meter_id", "meter")
+READING_STATUS_EXCLUDED = {"void", "invalid", "cancelled", "excluded"}
+
+UNMATCHED_REASON_MEANINGS = {
+    "selected_for_no_window": "no window could take this reading",
+    "no_effective_binding_at_reading_time": "no valid binding row covers this meter at the reading instant",
+    "binding_without_point_id": "the effective binding does not identify a metering point",
+    "ambiguous_binding_at_reading_time": "multiple active bindings map this meter to different points at the reading instant",
+    "binding_point_not_in_containing_window": "the reading is inside a planned window, but its bound point is not the window point",
+    "candidate_but_not_uniquely_assigned": "the reading is eligible for more than one window, or its window is not uniquely resolvable",
+    "not_inside_any_planned_window": "the reading instant is outside every planned window",
+}
+
+
+@dataclass
+class PlannedWindow:
+    window_id: str
+    point_id: str
+    start: Fraction
+    end: Fraction
+    start_text: str
+    end_text: str
+    path: str
+    raw: dict
+
+
+@dataclass
+class ReconcileBinding:
+    binding_id: str
+    meter_id: str
+    point_id: Optional[str]
+    scope_id: Optional[str]
+    start: Fraction
+    end: Fraction
+    start_text: str
+    end_text: str
+    path: str
+    raw: dict
+
+
+@dataclass
+class ReconcileReading:
+    reading_id: str
+    meter_id: Optional[str]
+    sec: Optional[Fraction]
+    ts_text: Optional[str]
+    value: Optional[int]
+    declared_point_id: Optional[str]
+    path: str
+    raw: dict
+    excluded_reason: Optional[str] = None
+    warnings: list[dict] = field(default_factory=list)
+
+
+def _first_present(raw: dict, keys: Iterable[str]) -> tuple[Optional[Any], Optional[str]]:
+    for key in keys:
+        if key in raw and raw[key] is not None and raw[key] != "":
+            return raw[key], key
+    return None, None
+
+
+def _load_planned_windows(root: dict) -> tuple[list[PlannedWindow], str]:
+    source_key: Optional[str] = None
+    raw_windows: Any = None
+    for key in ("planned_windows", "collection_windows", "planned_collection_windows"):
+        if key in root:
+            source_key, raw_windows = key, root[key]
+            break
+    if source_key is None:
+        raise InputError(
+            "planned_windows (or collection_windows/planned_collection_windows) is required for reconciliation"
+        )
+    if not isinstance(raw_windows, list):
+        raise InputError(f"{source_key} must be a list")
+
+    windows: list[PlannedWindow] = []
+    seen_ids: set[str] = set()
+    for i, raw in enumerate(raw_windows):
+        path = f"{source_key}[{i}]"
+        if not isinstance(raw, dict):
+            raise InputError(f"{path} must be an object")
+        wid_raw = raw.get("window_id", raw.get("id"))
+        wid = str(wid_raw) if wid_raw is not None and str(wid_raw) != "" else f"W{i + 1}"
+        if wid in seen_ids:
+            raise InputError(f"{path}: duplicate planned window_id {wid}")
+        seen_ids.add(wid)
+
+        point_raw, _ = _first_present(raw, POINT_KEYS)
+        if point_raw is None:
+            raise InputError(f"{path}: point_id (metering point) is required")
+        start_raw, start_key = _first_present(raw, WINDOW_START_KEYS)
+        end_raw, end_key = _first_present(raw, WINDOW_END_KEYS)
+        if start_raw is None or end_raw is None:
+            raise InputError(f"{path}: expected_from and expected_to are required half-open bounds")
+        start = parse_instant(start_raw, f"{path}.{start_key}")
+        end = parse_instant(end_raw, f"{path}.{end_key}")
+        if end.sec <= start.sec:
+            raise InputError(f"{path}: planned window must have positive UTC duration")
+
+        windows.append(PlannedWindow(
+            window_id=wid,
+            point_id=str(point_raw),
+            start=start.sec,
+            end=end.sec,
+            start_text=start.text,
+            end_text=end.text,
+            path=path,
+            raw=raw,
+        ))
+    return windows, source_key
+
+
+def _load_reconcile_bindings(root: dict) -> tuple[list[ReconcileBinding], list[dict]]:
+    raw_bindings = root.get("bindings", [])
+    if not isinstance(raw_bindings, list):
+        raise InputError("bindings must be a list")
+
+    bindings: list[ReconcileBinding] = []
+    excluded: list[dict] = []
+    id_counts: Counter[str] = Counter()
+    for i, raw in enumerate(raw_bindings):
+        path = f"bindings[{i}]"
+        if not isinstance(raw, dict):
+            raise InputError(f"{path} must be an object")
+        bid_raw = raw.get("binding_id", raw.get("id"))
+        bid = str(bid_raw) if bid_raw is not None and str(bid_raw) != "" else f"B{i + 1}"
+        id_counts[bid] += 1
+
+        valid = raw.get("valid", True)
+        status = str(raw.get("status", "valid")).lower()
+        if valid is False or status in READING_STATUS_EXCLUDED:
+            excluded.append({
+                "binding_id": bid,
+                "path": path,
+                "reason": "binding_marked_invalid_or_void",
+                "status": status,
+                "raw": raw,
+            })
+            continue
+
+        meter_raw, _ = _first_present(raw, METER_KEYS)
+        if meter_raw is None:
+            raise InputError(f"{path}: meter_id is required")
+        point_raw, _ = _first_present(raw, POINT_KEYS)
+        start_raw, start_key = _first_present(raw, ("valid_from", "start", "from"))
+        end_raw, end_key = _first_present(raw, ("valid_to", "end", "to"))
+        if start_raw is None or end_raw is None:
+            raise InputError(f"{path}: valid_from and valid_to are required half-open bounds")
+        start = parse_instant(start_raw, f"{path}.{start_key}")
+        end = parse_instant(end_raw, f"{path}.{end_key}")
+        if end.sec <= start.sec:
+            raise InputError(f"{path}: binding interval must have positive UTC duration")
+
+        bindings.append(ReconcileBinding(
+            binding_id=bid,
+            meter_id=str(meter_raw),
+            point_id=(str(point_raw) if point_raw is not None else None),
+            scope_id=(str(raw["scope_id"]) if raw.get("scope_id") is not None else None),
+            start=start.sec,
+            end=end.sec,
+            start_text=start.text,
+            end_text=end.text,
+            path=path,
+            raw=raw,
+        ))
+
+    for bid, count in sorted(id_counts.items()):
+        if count > 1:
+            excluded.append({
+                "binding_id": bid,
+                "path": None,
+                "reason": "duplicate_binding_id",
+                "severity": "warning",
+                "occurrences": count,
+                "message": "binding_id is not unique; every matching row is reported separately in binding evidence",
+            })
+    return bindings, excluded
+
+
+def _load_reconcile_readings(root: dict) -> tuple[list[ReconcileReading], list[dict]]:
+    raw_readings = root.get("readings", [])
+    if not isinstance(raw_readings, list):
+        raise InputError("readings must be a list")
+
+    readings: list[ReconcileReading] = []
+    excluded: list[dict] = []
+    seen_ids: set[str] = set()
+    for i, raw in enumerate(raw_readings):
+        path = f"readings[{i}]"
+        if not isinstance(raw, dict):
+            raise InputError(f"{path} must be an object")
+        rid_raw = raw.get("reading_id", raw.get("id"))
+        rid = str(rid_raw) if rid_raw is not None and str(rid_raw) != "" else f"reading-{i + 1}"
+        if rid in seen_ids:
+            raise InputError(f"{path}: duplicate reading_id {rid}")
+        seen_ids.add(rid)
+
+        valid = raw.get("valid", True)
+        status = str(raw.get("status", "valid")).lower()
+        excluded_reason: Optional[str] = None
+        if valid is False or status in READING_STATUS_EXCLUDED:
+            excluded_reason = f"reading_marked_{status if status != 'valid' else 'invalid'}"
+            excluded.append({
+                "reading_id": rid,
+                "path": path,
+                "reason": excluded_reason,
+                "raw": raw,
+            })
+
+        meter_raw, _ = _first_present(raw, METER_KEYS)
+        ts_raw, ts_key = _first_present(raw, ("ts", "timestamp", "time"))
+        value_raw, _ = _first_present(raw, ("value_wh", "value", "cumulative_wh"))
+        point_raw, _ = _first_present(raw, POINT_KEYS)
+
+        if excluded_reason is None:
+            if meter_raw is None:
+                raise InputError(f"{path}: meter_id is required")
+            if ts_raw is None:
+                raise InputError(f"{path}: ts is required")
+            instant = parse_instant(ts_raw, f"{path}.{ts_key}")
+            sec: Optional[Fraction] = instant.sec
+            ts_text: Optional[str] = instant.text
+            value: Optional[int] = require_int(value_raw, f"{path}.value_wh")
+            warnings: list[dict] = []
+        else:
+            # Invalid/void rows remain visible as evidence but are never candidates.
+            warnings = []
+            sec = None
+            ts_text = str(ts_raw) if ts_raw is not None else None
+            if ts_raw is not None:
+                try:
+                    instant = parse_instant(ts_raw, f"{path}.{ts_key}")
+                    sec, ts_text = instant.sec, instant.text
+                except InputError:
+                    warnings.append({
+                        "code": "excluded_reading_timestamp_unparsable",
+                        "severity": "warning",
+                        "message": "excluded reading timestamp is not parseable; raw row retained",
+                    })
+            value = value_raw if isinstance(value_raw, int) and not isinstance(value_raw, bool) else None
+
+        readings.append(ReconcileReading(
+            reading_id=rid,
+            meter_id=(str(meter_raw) if meter_raw is not None else None),
+            sec=sec,
+            ts_text=ts_text,
+            value=value,
+            declared_point_id=(str(point_raw) if point_raw is not None else None),
+            path=path,
+            raw=raw,
+            excluded_reason=excluded_reason,
+            warnings=warnings,
+        ))
+    return readings, excluded
+
+
+def _active_bindings(
+    bindings: list[ReconcileBinding], meter_id: Optional[str], sec: Fraction
+) -> list[ReconcileBinding]:
+    if meter_id is None:
+        return []
+    return [b for b in bindings if b.meter_id == meter_id and b.start <= sec < b.end]
+
+
+def _binding_state(active: list[ReconcileBinding]) -> tuple[str, list[str]]:
+    if not active:
+        return "no_active_binding", []
+    points = sorted({b.point_id for b in active if b.point_id is not None})
+    if not points:
+        return "binding_without_point_id", []
+    if len(points) > 1:
+        return "ambiguous_binding", points
+    return "unique_point", points
+
+
+def _binding_evidence(b: ReconcileBinding) -> dict:
+    return {
+        "binding_id": b.binding_id,
+        "meter_id": b.meter_id,
+        "point_id": b.point_id,
+        "scope_id": b.scope_id,
+        "declared_valid_from": b.start_text,
+        "declared_valid_to": b.end_text,
+        "valid_from_utc": abs_to_utc_iso(b.start),
+        "valid_to_utc": abs_to_utc_iso(b.end),
+        "path": b.path,
+        "raw": b.raw,
+    }
+
+
+def _reading_evidence(
+    reading: ReconcileReading,
+    active: list[ReconcileBinding],
+    contained: list[PlannedWindow],
+    candidates: list[PlannedWindow],
+    state: str,
+    bound_points: list[str],
+) -> dict:
+    warnings = list(reading.warnings)
+    if (
+        reading.declared_point_id is not None
+        and bound_points
+        and reading.declared_point_id not in bound_points
+    ):
+        warnings.append({
+            "code": "declared_point_differs_from_binding",
+            "severity": "warning",
+            "message": "reading row declares a point that differs from its effective binding; binding evidence governs",
+            "declared_point_id": reading.declared_point_id,
+            "bound_point_ids": bound_points,
+        })
+    if len(active) > 1 and state == "unique_point":
+        warnings.append({
+            "code": "multiple_active_binding_rows_same_point",
+            "severity": "warning",
+            "message": "more than one active binding row maps this meter to the same point; all rows are retained as evidence",
+            "binding_ids": [b.binding_id for b in active],
+        })
+    return {
+        "reading_id": reading.reading_id,
+        "meter_id": reading.meter_id,
+        "declared_ts": reading.ts_text,
+        "ts_utc": abs_to_utc_iso(reading.sec) if reading.sec is not None else None,
+        "value_wh": reading.value,
+        "path": reading.path,
+        "binding_state": state,
+        "bound_point_ids": bound_points,
+        "attribution_ambiguous": state == "ambiguous_binding",
+        "active_bindings": [_binding_evidence(b) for b in active],
+        "contained_window_ids": [w.window_id for w in contained],
+        "candidate_window_ids": [w.window_id for w in candidates],
+        "warnings": warnings,
+        "raw": reading.raw,
+    }
+
+
+def _unmatched_reason(
+    state: str,
+    contained: list[PlannedWindow],
+    candidates: list[PlannedWindow],
+) -> str:
+    if state == "no_active_binding":
+        return "no_effective_binding_at_reading_time"
+    if state == "binding_without_point_id":
+        return "binding_without_point_id"
+    if state == "ambiguous_binding":
+        return "ambiguous_binding_at_reading_time"
+    if candidates:
+        return "candidate_but_not_uniquely_assigned"
+    if contained:
+        return "binding_point_not_in_containing_window"
+    return "not_inside_any_planned_window"
+
+
+def _overlapping_point_bindings(
+    bindings: list[ReconcileBinding], window: PlannedWindow
+) -> list[dict]:
+    out: list[dict] = []
+    for b in bindings:
+        if b.point_id != window.point_id:
+            continue
+        overlap_start = max(b.start, window.start)
+        overlap_end = min(b.end, window.end)
+        if overlap_end <= overlap_start:
+            continue
+        out.append({
+            "binding_id": b.binding_id,
+            "meter_id": b.meter_id,
+            "point_id": b.point_id,
+            "scope_id": b.scope_id,
+            "declared_valid_from": b.start_text,
+            "declared_valid_to": b.end_text,
+            "valid_from_utc": abs_to_utc_iso(b.start),
+            "valid_to_utc": abs_to_utc_iso(b.end),
+            "overlap_start_utc": abs_to_utc_iso(overlap_start),
+            "overlap_end_utc": abs_to_utc_iso(overlap_end),
+            "path": b.path,
+            "raw": b.raw,
+        })
+    out.sort(key=lambda x: (x["valid_from_utc"], x["binding_id"], x["meter_id"]))
+    return out
+
+
+def reconcile_windows(
+    root: dict,
+    input_path: Optional[Path] = None,
+    raw_bytes: Optional[bytes] = None,
+) -> dict:
+    """Audit planned collection windows against readings and effective bindings.
+
+    Pure read-only analysis: no settlement data is modified or recomputed.
+    """
+    windows, windows_source = _load_planned_windows(root)
+    bindings, excluded_bindings = _load_reconcile_bindings(root)
+    readings, excluded_readings = _load_reconcile_readings(root)
+
+    active_by_reading: dict[str, list[ReconcileBinding]] = {}
+    state_by_reading: dict[str, str] = {}
+    points_by_reading: dict[str, list[str]] = {}
+    contained_by_reading: dict[str, list[PlannedWindow]] = {}
+    candidates_by_reading: dict[str, list[PlannedWindow]] = {}
+
+    for reading in readings:
+        if reading.excluded_reason is not None or reading.sec is None:
+            continue
+        active = _active_bindings(bindings, reading.meter_id, reading.sec)
+        state, points = _binding_state(active)
+        contained = [w for w in windows if w.start <= reading.sec < w.end]
+        if state in ("unique_point", "ambiguous_binding"):
+            candidates = [w for w in contained if w.point_id in points]
+        else:
+            candidates = []
+        active_by_reading[reading.reading_id] = active
+        state_by_reading[reading.reading_id] = state
+        points_by_reading[reading.reading_id] = points
+        contained_by_reading[reading.reading_id] = contained
+        candidates_by_reading[reading.reading_id] = candidates
+
+    reading_ids_by_window: dict[str, list[str]] = {w.window_id: [] for w in windows}
+    for reading in readings:
+        for w in candidates_by_reading.get(reading.reading_id, []):
+            reading_ids_by_window[w.window_id].append(reading.reading_id)
+    for ids in reading_ids_by_window.values():
+        ids.sort()
+
+    window_status: dict[str, str] = {}
+    selected_by_window: dict[str, str] = {}
+    window_issues: dict[str, list[dict]] = {}
+    selected_reading_ids: set[str] = set()
+
+    for window in windows:
+        candidate_ids = reading_ids_by_window[window.window_id]
+        issues: list[dict] = []
+        ambiguous_ids = [
+            rid for rid in candidate_ids
+            if state_by_reading.get(rid) == "ambiguous_binding"
+        ]
+        if not candidate_ids:
+            status = "missed"
+            issues.append({
+                "code": "no_candidate_reading",
+                "message": "no reading both falls inside the window and is bound to the window point at its instant",
+            })
+        elif ambiguous_ids:
+            status = "pending_review"
+            issues.append({
+                "code": "ambiguous_binding_at_reading_time",
+                "message": "a reading inside the window is bound to several points at its instant; attribution is not unique",
+                "reading_ids": ambiguous_ids,
+                "candidate_reading_ids": candidate_ids,
+            })
+        elif len(candidate_ids) > 1:
+            status = "pending_review"
+            issues.append({
+                "code": "multiple_candidate_readings",
+                "message": "more than one eligible reading falls inside the window; no reading is selected by proximity",
+                "candidate_reading_ids": candidate_ids,
+            })
+        else:
+            rid = candidate_ids[0]
+            other_window_ids = [
+                w.window_id for w in candidates_by_reading.get(rid, [])
+                if w.window_id != window.window_id
+            ]
+            if other_window_ids:
+                status = "pending_review"
+                issues.append({
+                    "code": "reading_shared_across_windows",
+                    "message": "the only eligible reading is also eligible for other planned windows; attribution is not unique",
+                    "reading_id": rid,
+                    "other_window_ids": other_window_ids,
+                })
+            else:
+                status = "matched"
+                selected_by_window[window.window_id] = rid
+                selected_reading_ids.add(rid)
+        window_status[window.window_id] = status
+        window_issues[window.window_id] = issues
+
+    window_results: list[dict] = []
+    readings_by_id = {r.reading_id: r for r in readings}
+    for window in windows:
+        candidate_ids = reading_ids_by_window[window.window_id]
+        candidate_evidence = []
+        for rid in candidate_ids:
+            reading = readings_by_id[rid]
+            candidate_evidence.append(_reading_evidence(
+                reading,
+                active_by_reading.get(rid, []),
+                contained_by_reading.get(rid, []),
+                candidates_by_reading.get(rid, []),
+                state_by_reading.get(rid, "no_active_binding"),
+                points_by_reading.get(rid, []),
+            ))
+        selected_id = selected_by_window.get(window.window_id)
+        selected = next((x for x in candidate_evidence if x["reading_id"] == selected_id), None)
+        status = window_status[window.window_id]
+        # Every valid reading physically inside the window, even when its
+        # point/binding makes it ineligible.  This lets a missed window be
+        # traced to the raw rows that were collected but could not be
+        # attributed, without ever promoting them to candidates.
+        inside: list[dict] = []
+        excluded_inside: list[dict] = []
+        for reading in readings:
+            if reading.sec is None or not (window.start <= reading.sec < window.end):
+                continue
+            if reading.excluded_reason is not None:
+                excluded_inside.append({
+                    "reading_id": reading.reading_id,
+                    "meter_id": reading.meter_id,
+                    "ts_utc": abs_to_utc_iso(reading.sec),
+                    "value_wh": reading.value,
+                    "exclusion_reason": reading.excluded_reason,
+                    "path": reading.path,
+                    "raw": reading.raw,
+                })
+                continue
+            state = state_by_reading.get(reading.reading_id, "no_active_binding")
+            bound_points = points_by_reading.get(reading.reading_id, [])
+            if reading.reading_id in candidate_ids:
+                attribution = "candidate_for_this_window"
+            elif state == "no_active_binding":
+                attribution = "no_effective_binding_at_reading_time"
+            elif state == "binding_without_point_id":
+                attribution = "binding_without_point_id"
+            elif state == "ambiguous_binding":
+                attribution = "ambiguous_binding_at_reading_time"
+            elif window.point_id not in bound_points:
+                attribution = "bound_to_other_point"
+            else:
+                attribution = "not_eligible"
+            row = {
+                "reading_id": reading.reading_id,
+                "meter_id": reading.meter_id,
+                "ts_utc": abs_to_utc_iso(reading.sec),
+                "value_wh": reading.value,
+                "binding_state": state,
+                "bound_point_ids": bound_points,
+                "attribution": attribution,
+            }
+            if attribution != "candidate_for_this_window":
+                row["active_bindings"] = [_binding_evidence(b) for b in active_by_reading.get(reading.reading_id, [])]
+            inside.append(row)
+        window_results.append({
+            "window_id": window.window_id,
+            "point_id": window.point_id,
+            "status": status,
+            "status_label": RECONCILIATION_STATUS_LABELS[status],
+            "status_meaning": RECONCILIATION_STATUS_MEANINGS[status],
+            "expected_from": window.start_text,
+            "expected_to": window.end_text,
+            "start_utc": abs_to_utc_iso(window.start),
+            "end_utc": abs_to_utc_iso(window.end),
+            "duration_seconds": frac_str(window.end - window.start),
+            "half_open": WINDOW_HALF_OPEN_NOTE,
+            "selected_reading_id": selected_id,
+            "selected_reading": selected,
+            "candidate_reading_ids": candidate_ids,
+            "candidate_readings": candidate_evidence,
+            "readings_inside_window": inside,
+            "excluded_readings_inside_window": excluded_inside,
+            "issues": window_issues[window.window_id],
+            "overlapping_point_bindings": _overlapping_point_bindings(bindings, window),
+            "raw": window.raw,
+        })
+
+    unmatched_readings: list[dict] = []
+    for reading in readings:
+        if reading.excluded_reason is not None or reading.sec is None:
+            continue
+        if reading.reading_id in selected_reading_ids:
+            continue
+        contained = contained_by_reading.get(reading.reading_id, [])
+        candidates = candidates_by_reading.get(reading.reading_id, [])
+        state = state_by_reading.get(reading.reading_id, "no_active_binding")
+        candidate_statuses = {
+            w.window_id: window_status[w.window_id] for w in candidates
+        }
+        reason = _unmatched_reason(state, contained, candidates)
+        evidence = _reading_evidence(
+            reading,
+            active_by_reading.get(reading.reading_id, []),
+            contained,
+            candidates,
+            state,
+            points_by_reading.get(reading.reading_id, []),
+        )
+        evidence.update({
+            "reason": reason,
+            "reason_detail": UNMATCHED_REASON_MEANINGS.get(reason),
+            "candidate_window_statuses": candidate_statuses,
+        })
+        unmatched_readings.append(evidence)
+
+    matched_count = sum(1 for w in windows if window_status[w.window_id] == "matched")
+    pending_count = sum(1 for w in windows if window_status[w.window_id] == "pending_review")
+    missed_count = sum(1 for w in windows if window_status[w.window_id] == "missed")
+    valid_readings = [r for r in readings if r.excluded_reason is None and r.sec is not None]
+    has_window_attention = pending_count > 0 or missed_count > 0
+
+    if not windows:
+        overall_status = "no_planned_windows"
+    elif has_window_attention:
+        overall_status = "attention_required"
+    else:
+        overall_status = "all_windows_matched"
+
+    return {
+        "report_type": "planned_window_reconciliation",
+        "overall_status": overall_status,
+        "attention_required": has_window_attention or bool(unmatched_readings),
+        "window_attention_required": has_window_attention,
+        "unmatched_readings_present": bool(unmatched_readings),
+        "rule_version": {
+            "input_rule_version": root.get("rule_version", "unspecified"),
+            "engine_rule_version": RECONCILIATION_RULE_VERSION,
+        },
+        "input_audit": {
+            "path": str(input_path) if input_path else None,
+            "sha256": hashlib.sha256(raw_bytes).hexdigest() if raw_bytes else None,
+            "planned_windows_source": windows_source,
+            "reading_count": len(readings),
+            "valid_reading_count": len(valid_readings),
+            "binding_count": len(bindings),
+            "excluded_reading_count": len(excluded_readings),
+            "excluded_binding_count": len(excluded_bindings),
+        },
+        "rules": {
+            "half_open": WINDOW_HALF_OPEN_NOTE,
+            "candidate_rule": RECONCILIATION_MATCHING_RULE,
+            "status_meaning": RECONCILIATION_STATUS_MEANINGS,
+            "selection_rule": "a reading is selected only when it is the single unambiguous candidate of exactly one window",
+            "duplicate_reading_rule": "one reading may be selected for at most one window",
+        },
+        "summary": {
+            "planned_window_count": len(windows),
+            "matched_window_count": matched_count,
+            "pending_review_window_count": pending_count,
+            "missed_window_count": missed_count,
+            "valid_reading_count": len(valid_readings),
+            "selected_reading_count": len(selected_reading_ids),
+            "unmatched_reading_count": len(unmatched_readings),
+            "excluded_reading_count": len(excluded_readings),
+            "excluded_binding_count": len(excluded_bindings),
+        },
+        "windows": window_results,
+        "unmatched_readings": unmatched_readings,
+        "excluded_readings": excluded_readings,
+        "excluded_bindings": excluded_bindings,
+        "bindings_considered": [_binding_evidence(b) for b in bindings],
+    }
+
+
+def write_reconciliation_csv(report: dict, path: Path) -> None:
+    import csv
+    fields = [
+        "window_id", "point_id", "status", "status_label",
+        "expected_from", "expected_to", "start_utc", "end_utc", "duration_seconds",
+        "selected_reading_id", "selected_reading_utc", "selected_meter_id", "selected_value_wh",
+        "candidate_reading_ids", "candidate_count", "issue_codes",
+    ]
+    with path.open("w", encoding="utf-8", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=fields)
+        writer.writeheader()
+        for w in report["windows"]:
+            selected = w["selected_reading"]
+            writer.writerow({
+                "window_id": w["window_id"],
+                "point_id": w["point_id"],
+                "status": w["status"],
+                "status_label": w["status_label"],
+                "expected_from": w["expected_from"],
+                "expected_to": w["expected_to"],
+                "start_utc": w["start_utc"],
+                "end_utc": w["end_utc"],
+                "duration_seconds": w["duration_seconds"],
+                "selected_reading_id": w["selected_reading_id"] or "",
+                "selected_reading_utc": (selected or {}).get("ts_utc") or "",
+                "selected_meter_id": (selected or {}).get("meter_id") or "",
+                "selected_value_wh": "" if not selected or selected.get("value_wh") is None else selected["value_wh"],
+                "candidate_reading_ids": ";".join(w["candidate_reading_ids"]),
+                "candidate_count": len(w["candidate_reading_ids"]),
+                "issue_codes": ";".join(x["code"] for x in w["issues"]),
+            })
+
 def settle(root: dict, input_path: Optional[Path] = None, raw_bytes: Optional[bytes] = None) -> dict:
     calendars = load_calendars(root)
     segments, excluded, reading_issues = build_segments(root)
@@ -1919,40 +2649,115 @@ def settle(root: dict, input_path: Optional[Path] = None, raw_bytes: Optional[by
 
 
 def main(argv: Optional[list[str]] = None) -> int:
-    parser = argparse.ArgumentParser(description="Auditable meter time-of-use integer allocator")
+    parser = argparse.ArgumentParser(
+        description=(
+            "Auditable meter time-of-use integer allocator, with optional "
+            "planned collection-window reconciliation"
+        )
+    )
     parser.add_argument("--input", "-i", type=Path, help="Input JSON path")
     parser.add_argument("--output", "-o", type=Path, help="Output audit JSON path (default: stdout)")
     parser.add_argument("--csv", type=Path, help="Optional flat slice CSV path")
+    parser.add_argument(
+        "--reconcile", action="store_true",
+        help="Also run planned collection-window reconciliation and attach it to the report",
+    )
+    parser.add_argument(
+        "--reconcile-output", type=Path,
+        help="Write the reconciliation report to this separate JSON path (implies --reconcile)",
+    )
+    parser.add_argument(
+        "--reconcile-csv", type=Path,
+        help="Write one row per planned window to this CSV path (implies --reconcile)",
+    )
+    parser.add_argument(
+        "--reconcile-only", action="store_true",
+        help=(
+            "Run only planned-window reconciliation; no settlement is computed. "
+            "JSON goes to --reconcile-output (or --output / stdout)."
+        ),
+    )
     parser.add_argument("--pretty", action="store_true", default=True, help="Indent JSON output")
     args = parser.parse_args(argv)
 
     if not args.input:
         parser.print_help()
         return 2
+    if args.reconcile_only and args.csv:
+        parser.error("--reconcile-only does not produce settlement slices; --csv is not applicable")
     try:
         raw = args.input.read_bytes()
         root = json.loads(raw.decode("utf-8"))
         if not isinstance(root, dict):
             raise InputError("top-level JSON value must be an object")
-        report = settle(root, args.input.resolve(), raw)
+        resolved_input = args.input.resolve()
+
+        if args.reconcile_only:
+            reconciliation = reconcile_windows(root, resolved_input, raw)
+            text = json.dumps(reconciliation, ensure_ascii=False, indent=2 if args.pretty else None)
+            target = args.reconcile_output or args.output
+            if target:
+                _write_text_atomic(target, text)
+            else:
+                sys.stdout.write(text + "\n")
+            if args.reconcile_csv:
+                args.reconcile_csv.parent.mkdir(parents=True, exist_ok=True)
+                write_reconciliation_csv(reconciliation, args.reconcile_csv)
+            return 0
+
+        wants_reconcile = bool(
+            args.reconcile or args.reconcile_output or args.reconcile_csv
+        )
+        report = settle(root, resolved_input, raw)
+        if wants_reconcile:
+            # Additive, clearly namespaced key: every settlement field above was
+            # produced exactly as before and is never recomputed from this data.
+            # A malformed planned-window section is reported inside this key so
+            # that it cannot suppress an otherwise valid settlement report.
+            try:
+                report["planned_window_reconciliation"] = reconcile_windows(
+                    root, resolved_input, raw
+                )
+            except InputError as exc:
+                report["planned_window_reconciliation"] = {
+                    "report_type": "planned_window_reconciliation",
+                    "overall_status": "fatal_input_error",
+                    "error": str(exc),
+                    "error_type": "InputError",
+                }
         text = json.dumps(report, ensure_ascii=False, indent=2 if args.pretty else None)
         if args.output:
-            args.output.parent.mkdir(parents=True, exist_ok=True)
-            args.output.write_text(text + "\n", encoding="utf-8")
+            _write_text_atomic(args.output, text)
         else:
             sys.stdout.write(text + "\n")
         if args.csv:
             write_slices_csv(report, args.csv)
+        if args.reconcile_output:
+            _write_text_atomic(
+                args.reconcile_output,
+                json.dumps(report["planned_window_reconciliation"], ensure_ascii=False, indent=2),
+            )
+        if args.reconcile_csv:
+            args.reconcile_csv.parent.mkdir(parents=True, exist_ok=True)
+            write_reconciliation_csv(report["planned_window_reconciliation"], args.reconcile_csv)
     except InputError as exc:
         err = {"overall_status": "fatal_input_error", "error": str(exc), "error_type": "InputError"}
         text = json.dumps(err, ensure_ascii=False, indent=2)
-        if args.output:
-            args.output.parent.mkdir(parents=True, exist_ok=True)
-            args.output.write_text(text + "\n", encoding="utf-8")
+        if args.reconcile_only:
+            target = args.reconcile_output
+        else:
+            target = args.output if args.output else args.reconcile_output
+        if target:
+            _write_text_atomic(target, text)
         else:
             sys.stderr.write(text + "\n")
         return 2
     return 0
+
+
+def _write_text_atomic(path: Path, text: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text + "\n", encoding="utf-8")
 
 
 if __name__ == "__main__":
