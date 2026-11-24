@@ -1,0 +1,2813 @@
+{
+  "overall_status": "partial_settlement",
+  "currency": null,
+  "rule_version": {
+    "input_rule_version": "park-meter-rules-2026-v2",
+    "engine_rule_version": "integer-slice-flow-1.0.0",
+    "calendar_rule_version": "billing-calendar-us-eastern-v3"
+  },
+  "input_audit": {
+    "path": "/workspace/examples/park_input.json",
+    "sha256": "9918ad4af687c4c85ef9060e13b545ac4e26cbcf8f76d7e9b03df336206831c5",
+    "original_readings": [
+      {
+        "reading_id": "DST-R1",
+        "meter_id": "M-DST",
+        "ts": "2024-11-03T01:30:00-04:00",
+        "value_wh": 100
+      },
+      {
+        "reading_id": "DST-R2",
+        "meter_id": "M-DST",
+        "ts": "2024-11-03T01:30:00-05:00",
+        "value_wh": 102
+      },
+      {
+        "reading_id": "XD-R1",
+        "meter_id": "M-XDAY",
+        "ts": "2024-11-04T23:30:00-05:00",
+        "value_wh": 1000
+      },
+      {
+        "reading_id": "XD-R2",
+        "meter_id": "M-XDAY",
+        "ts": "2024-11-05T00:30:00-05:00",
+        "value_wh": 1003
+      },
+      {
+        "reading_id": "EX-OLD-R1",
+        "meter_id": "M-EX-OLD",
+        "ts": "2024-11-06T10:00:00-05:00",
+        "value_wh": 1000
+      },
+      {
+        "reading_id": "EX-NEW-R1",
+        "meter_id": "M-EX-NEW",
+        "ts": "2024-11-06T14:00:00-05:00",
+        "value_wh": 90
+      },
+      {
+        "reading_id": "PEND-OLD-R1",
+        "meter_id": "M-PEND-OLD",
+        "ts": "2024-11-07T10:00:00-05:00",
+        "value_wh": 500
+      },
+      {
+        "reading_id": "PEND-NEW-R1",
+        "meter_id": "M-PEND-NEW",
+        "ts": "2024-11-07T14:00:00-05:00",
+        "value_wh": 70
+      },
+      {
+        "reading_id": "NEG-R1",
+        "meter_id": "M-NEG",
+        "ts": "2024-11-08T10:00:00-05:00",
+        "value_wh": 200
+      },
+      {
+        "reading_id": "NEG-R2",
+        "meter_id": "M-NEG",
+        "ts": "2024-11-08T12:00:00-05:00",
+        "value_wh": 150
+      },
+      {
+        "reading_id": "AMB-R1",
+        "meter_id": "M-AMB",
+        "ts": "2024-11-09T10:00:00-05:00",
+        "value_wh": 0
+      },
+      {
+        "reading_id": "AMB-R2",
+        "meter_id": "M-AMB",
+        "ts": "2024-11-09T12:00:00-05:00",
+        "value_wh": 4
+      },
+      {
+        "reading_id": "H1-R1",
+        "meter_id": "M-H1",
+        "ts": "2024-01-01T23:30:00-05:00",
+        "value_wh": 0
+      },
+      {
+        "reading_id": "H1-R2",
+        "meter_id": "M-H1",
+        "ts": "2024-01-02T00:30:00-05:00",
+        "value_wh": 1
+      },
+      {
+        "reading_id": "H2-R1",
+        "meter_id": "M-H2",
+        "ts": "2024-01-01T23:45:00-05:00",
+        "value_wh": 10
+      },
+      {
+        "reading_id": "H2-R2",
+        "meter_id": "M-H2",
+        "ts": "2024-01-02T00:15:00-05:00",
+        "value_wh": 11
+      },
+      {
+        "reading_id": "H3-R1",
+        "meter_id": "M-H3",
+        "ts": "2024-01-03T23:30:00-05:00",
+        "value_wh": 20
+      },
+      {
+        "reading_id": "H3-R2",
+        "meter_id": "M-H3",
+        "ts": "2024-01-04T00:30:00-05:00",
+        "value_wh": 21
+      },
+      {
+        "reading_id": "HQ-R1",
+        "meter_id": "M-HQ1",
+        "ts": "2024-02-01T07:00:00-05:00",
+        "value_wh": 0
+      },
+      {
+        "reading_id": "HQ-R2",
+        "meter_id": "M-HQ1",
+        "ts": "2024-02-01T09:00:00-05:00",
+        "value_wh": 1
+      },
+      {
+        "reading_id": "HQ2-R1",
+        "meter_id": "M-HQ2",
+        "ts": "2024-02-01T07:30:00-05:00",
+        "value_wh": 0
+      },
+      {
+        "reading_id": "HQ2-R2",
+        "meter_id": "M-HQ2",
+        "ts": "2024-02-01T08:30:00-05:00",
+        "value_wh": 1
+      },
+      {
+        "reading_id": "HQ3-R1",
+        "meter_id": "M-HQ3",
+        "ts": "2024-02-01T12:00:00-05:00",
+        "value_wh": 0
+      },
+      {
+        "reading_id": "HQ3-R2",
+        "meter_id": "M-HQ3",
+        "ts": "2024-02-01T15:00:00-05:00",
+        "value_wh": 1
+      }
+    ],
+    "exchange_vouchers": [
+      {
+        "voucher_id": "V-EX-COMPLETE",
+        "exchange_at": "2024-11-06T12:00:00-05:00",
+        "old_meter_id": "M-EX-OLD",
+        "new_meter_id": "M-EX-NEW",
+        "old_end": {
+          "ts": "2024-11-06T12:00:00-05:00",
+          "value_wh": 1200
+        },
+        "new_start": {
+          "ts": "2024-11-06T12:00:00-05:00",
+          "value_wh": 0
+        }
+      },
+      {
+        "voucher_id": "V-PEND-INCOMPLETE",
+        "exchange_at": "2024-11-07T12:00:00-05:00",
+        "old_meter_id": "M-PEND-OLD",
+        "new_meter_id": "M-PEND-NEW"
+      }
+    ],
+    "excluded_readings": []
+  },
+  "totals": {
+    "slice_count": 18,
+    "allocated_wh_where_known": 295,
+    "amount_fraction_where_known": "3541/12",
+    "settled_components": 3,
+    "rejected_or_blocked_components": 6
+  },
+  "components": [
+    {
+      "component_id": "R001",
+      "status": "blocked_evidence",
+      "segment_ids": [
+        "SEG-M-AMB-001"
+      ],
+      "control_keys": [
+        {
+          "scope_id": "S-AMB1",
+          "billing_day": "2024-11-09",
+          "rate_id": "R-AMB"
+        },
+        {
+          "scope_id": "S-AMB2",
+          "billing_day": "2024-11-09",
+          "rate_id": "R-AMB"
+        }
+      ],
+      "atom_ids": [],
+      "slice_count": 0,
+      "all_allocated": false,
+      "allocated_wh_if_complete": 0,
+      "amount_fraction_if_complete": "0",
+      "issues": [
+        {
+          "segment_id": "SEG-M-AMB-001",
+          "code": "ambiguous_binding",
+          "message": "multiple binding rows cover the same half-open interval",
+          "start_utc": "2024-11-09T15:00:00Z",
+          "end_utc": "2024-11-09T17:00:00Z",
+          "binding_ids": [
+            "B-AMB-1",
+            "B-AMB-2"
+          ]
+        }
+      ],
+      "evidence": {}
+    },
+    {
+      "component_id": "R002",
+      "status": "settled",
+      "segment_ids": [
+        "SEG-M-DST-001"
+      ],
+      "control_keys": [
+        {
+          "scope_id": "S-DST",
+          "billing_day": "2024-11-03",
+          "rate_id": "R-DST"
+        }
+      ],
+      "atom_ids": [
+        "A00001"
+      ],
+      "slice_count": 1,
+      "all_allocated": true,
+      "allocated_wh_if_complete": 2,
+      "amount_fraction_if_complete": "4/3",
+      "issues": [],
+      "evidence": {
+        "baseline_convention": "allocated_wh = floor(q_wh) + z_e, z_e in {0,1} for non-integer q; integer q has z=0",
+        "prechecks": [
+          {
+            "segment_id": "SEG-M-DST-001",
+            "target_delta_wh": 2,
+            "sum_floor_wh": 2,
+            "required_ceil_increments": 0,
+            "fractional_slice_count": 0,
+            "local_bound_ok": true
+          },
+          {
+            "control": {
+              "scope_id": "S-DST",
+              "billing_day": "2024-11-03",
+              "rate_id": "R-DST"
+            },
+            "target_total_wh": 2,
+            "sum_floor_wh": 2,
+            "required_ceil_increments": 0,
+            "fractional_slice_count": 0,
+            "local_bound_ok": true
+          }
+        ],
+        "required_segment_increments": 0,
+        "required_control_increments": 0,
+        "flow_wh": 0
+      }
+    },
+    {
+      "component_id": "R003",
+      "status": "settled",
+      "segment_ids": [
+        "SEG-M-EX-NEW-001",
+        "SEG-M-EX-OLD-001"
+      ],
+      "control_keys": [
+        {
+          "scope_id": "S-EX",
+          "billing_day": "2024-11-06",
+          "rate_id": "R-EX"
+        }
+      ],
+      "atom_ids": [
+        "A00002",
+        "A00003"
+      ],
+      "slice_count": 2,
+      "all_allocated": true,
+      "allocated_wh_if_complete": 290,
+      "amount_fraction_if_complete": "290",
+      "issues": [],
+      "evidence": {
+        "baseline_convention": "allocated_wh = floor(q_wh) + z_e, z_e in {0,1} for non-integer q; integer q has z=0",
+        "prechecks": [
+          {
+            "segment_id": "SEG-M-EX-NEW-001",
+            "target_delta_wh": 90,
+            "sum_floor_wh": 90,
+            "required_ceil_increments": 0,
+            "fractional_slice_count": 0,
+            "local_bound_ok": true
+          },
+          {
+            "segment_id": "SEG-M-EX-OLD-001",
+            "target_delta_wh": 200,
+            "sum_floor_wh": 200,
+            "required_ceil_increments": 0,
+            "fractional_slice_count": 0,
+            "local_bound_ok": true
+          },
+          {
+            "control": {
+              "scope_id": "S-EX",
+              "billing_day": "2024-11-06",
+              "rate_id": "R-EX"
+            },
+            "target_total_wh": 290,
+            "sum_floor_wh": 290,
+            "required_ceil_increments": 0,
+            "fractional_slice_count": 0,
+            "local_bound_ok": true
+          }
+        ],
+        "required_segment_increments": 0,
+        "required_control_increments": 0,
+        "flow_wh": 0
+      }
+    },
+    {
+      "component_id": "R004",
+      "status": "infeasible",
+      "segment_ids": [
+        "SEG-M-H1-001",
+        "SEG-M-H2-001"
+      ],
+      "control_keys": [
+        {
+          "scope_id": "S-HALL",
+          "billing_day": "2024-01-01",
+          "rate_id": "R-H"
+        },
+        {
+          "scope_id": "S-HALL",
+          "billing_day": "2024-01-02",
+          "rate_id": "R-H"
+        }
+      ],
+      "atom_ids": [
+        "A00004",
+        "A00005",
+        "A00006",
+        "A00007"
+      ],
+      "slice_count": 4,
+      "all_allocated": false,
+      "allocated_wh_if_complete": null,
+      "amount_fraction_if_complete": null,
+      "issues": [
+        {
+          "code": "connected_range_total_conflict",
+          "message": "required ceil increments differ between reading segments and control cells in this connected range",
+          "segment_required_increments": 2,
+          "control_required_increments": 1,
+          "gap_wh": 1,
+          "verification": "sum(target segment Wh) - sum(all slice floor Wh) vs sum(control Wh) - sum(all slice floor Wh)"
+        }
+      ],
+      "evidence": {
+        "baseline_convention": "allocated_wh = floor(q_wh) + z_e, z_e in {0,1} for non-integer q; integer q has z=0",
+        "prechecks": [
+          {
+            "segment_id": "SEG-M-H1-001",
+            "target_delta_wh": 1,
+            "sum_floor_wh": 0,
+            "required_ceil_increments": 1,
+            "fractional_slice_count": 2,
+            "local_bound_ok": true
+          },
+          {
+            "segment_id": "SEG-M-H2-001",
+            "target_delta_wh": 1,
+            "sum_floor_wh": 0,
+            "required_ceil_increments": 1,
+            "fractional_slice_count": 2,
+            "local_bound_ok": true
+          },
+          {
+            "control": {
+              "scope_id": "S-HALL",
+              "billing_day": "2024-01-01",
+              "rate_id": "R-H"
+            },
+            "target_total_wh": 1,
+            "sum_floor_wh": 0,
+            "required_ceil_increments": 1,
+            "fractional_slice_count": 2,
+            "local_bound_ok": true
+          },
+          {
+            "control": {
+              "scope_id": "S-HALL",
+              "billing_day": "2024-01-02",
+              "rate_id": "R-H"
+            },
+            "target_total_wh": 0,
+            "sum_floor_wh": 0,
+            "required_ceil_increments": 0,
+            "fractional_slice_count": 2,
+            "local_bound_ok": true
+          }
+        ],
+        "required_segment_increments": 2,
+        "required_control_increments": 1,
+        "witness_type": "component_total_mismatch",
+        "gap_segment_minus_control_increments": 1
+      }
+    },
+    {
+      "component_id": "R005",
+      "status": "infeasible",
+      "segment_ids": [
+        "SEG-M-H3-001"
+      ],
+      "control_keys": [
+        {
+          "scope_id": "S-HALL",
+          "billing_day": "2024-01-03",
+          "rate_id": "R-H"
+        },
+        {
+          "scope_id": "S-HALL",
+          "billing_day": "2024-01-04",
+          "rate_id": "R-H"
+        }
+      ],
+      "atom_ids": [
+        "A00008",
+        "A00009"
+      ],
+      "slice_count": 2,
+      "all_allocated": false,
+      "allocated_wh_if_complete": null,
+      "amount_fraction_if_complete": null,
+      "issues": [
+        {
+          "code": "connected_range_total_conflict",
+          "message": "required ceil increments differ between reading segments and control cells in this connected range",
+          "segment_required_increments": 1,
+          "control_required_increments": 2,
+          "gap_wh": -1,
+          "verification": "sum(target segment Wh) - sum(all slice floor Wh) vs sum(control Wh) - sum(all slice floor Wh)"
+        }
+      ],
+      "evidence": {
+        "baseline_convention": "allocated_wh = floor(q_wh) + z_e, z_e in {0,1} for non-integer q; integer q has z=0",
+        "prechecks": [
+          {
+            "segment_id": "SEG-M-H3-001",
+            "target_delta_wh": 1,
+            "sum_floor_wh": 0,
+            "required_ceil_increments": 1,
+            "fractional_slice_count": 2,
+            "local_bound_ok": true
+          },
+          {
+            "control": {
+              "scope_id": "S-HALL",
+              "billing_day": "2024-01-03",
+              "rate_id": "R-H"
+            },
+            "target_total_wh": 1,
+            "sum_floor_wh": 0,
+            "required_ceil_increments": 1,
+            "fractional_slice_count": 1,
+            "local_bound_ok": true
+          },
+          {
+            "control": {
+              "scope_id": "S-HALL",
+              "billing_day": "2024-01-04",
+              "rate_id": "R-H"
+            },
+            "target_total_wh": 1,
+            "sum_floor_wh": 0,
+            "required_ceil_increments": 1,
+            "fractional_slice_count": 1,
+            "local_bound_ok": true
+          }
+        ],
+        "required_segment_increments": 1,
+        "required_control_increments": 2,
+        "witness_type": "component_total_mismatch",
+        "gap_segment_minus_control_increments": -1
+      }
+    },
+    {
+      "component_id": "R006",
+      "status": "infeasible",
+      "segment_ids": [
+        "SEG-M-HQ1-001",
+        "SEG-M-HQ2-001",
+        "SEG-M-HQ3-001"
+      ],
+      "control_keys": [
+        {
+          "scope_id": "S-HQ",
+          "billing_day": "2024-02-01",
+          "rate_id": "R-H"
+        },
+        {
+          "scope_id": "S-HQ",
+          "billing_day": "2024-02-01",
+          "rate_id": "R-L"
+        },
+        {
+          "scope_id": "S-HQ",
+          "billing_day": "2024-02-01",
+          "rate_id": "R-M"
+        }
+      ],
+      "atom_ids": [
+        "A00010",
+        "A00011",
+        "A00012",
+        "A00013",
+        "A00014",
+        "A00015",
+        "A00016"
+      ],
+      "slice_count": 7,
+      "all_allocated": false,
+      "allocated_wh_if_complete": null,
+      "amount_fraction_if_complete": null,
+      "issues": [
+        {
+          "code": "no_integer_allocation_in_connected_range",
+          "message": "max-flow cannot satisfy all segment and control integer totals; generalized Hall witness attached",
+          "max_flow": 2,
+          "required_flow": 3
+        }
+      ],
+      "evidence": {
+        "baseline_convention": "allocated_wh = floor(q_wh) + z_e, z_e in {0,1} for non-integer q; integer q has z=0",
+        "prechecks": [
+          {
+            "segment_id": "SEG-M-HQ1-001",
+            "target_delta_wh": 1,
+            "sum_floor_wh": 0,
+            "required_ceil_increments": 1,
+            "fractional_slice_count": 2,
+            "local_bound_ok": true
+          },
+          {
+            "segment_id": "SEG-M-HQ2-001",
+            "target_delta_wh": 1,
+            "sum_floor_wh": 0,
+            "required_ceil_increments": 1,
+            "fractional_slice_count": 2,
+            "local_bound_ok": true
+          },
+          {
+            "segment_id": "SEG-M-HQ3-001",
+            "target_delta_wh": 1,
+            "sum_floor_wh": 0,
+            "required_ceil_increments": 1,
+            "fractional_slice_count": 3,
+            "local_bound_ok": true
+          },
+          {
+            "control": {
+              "scope_id": "S-HQ",
+              "billing_day": "2024-02-01",
+              "rate_id": "R-H"
+            },
+            "target_total_wh": 1,
+            "sum_floor_wh": 0,
+            "required_ceil_increments": 1,
+            "fractional_slice_count": 5,
+            "local_bound_ok": true
+          },
+          {
+            "control": {
+              "scope_id": "S-HQ",
+              "billing_day": "2024-02-01",
+              "rate_id": "R-L"
+            },
+            "target_total_wh": 1,
+            "sum_floor_wh": 0,
+            "required_ceil_increments": 1,
+            "fractional_slice_count": 1,
+            "local_bound_ok": true
+          },
+          {
+            "control": {
+              "scope_id": "S-HQ",
+              "billing_day": "2024-02-01",
+              "rate_id": "R-M"
+            },
+            "target_total_wh": 1,
+            "sum_floor_wh": 0,
+            "required_ceil_increments": 1,
+            "fractional_slice_count": 1,
+            "local_bound_ok": true
+          }
+        ],
+        "required_segment_increments": 3,
+        "required_control_increments": 3,
+        "max_flow_increments": 2,
+        "target_flow_increments": 3,
+        "witness_type": "generalized_hall_min_cut",
+        "hall_witness": {
+          "subset_segments": [
+            "SEG-M-HQ1-001",
+            "SEG-M-HQ2-001"
+          ],
+          "required_ceil_increments_rS": 2,
+          "maximum_increments_absorbable": 1,
+          "strict_inequality": "2 > 1",
+          "columns": [
+            {
+              "control": {
+                "scope_id": "S-HQ",
+                "billing_day": "2024-02-01",
+                "rate_id": "R-H"
+              },
+              "fractional_edges_from_witness_segments": 4,
+              "control_required_increments": 1,
+              "usable_capacity_min": 1,
+              "atom_ids": [
+                "A00010",
+                "A00011",
+                "A00012",
+                "A00013"
+              ]
+            }
+          ],
+          "verification": "For subset S, each control j can receive at most min(c_j, e(S,j)) selected slices from S. If sum r_i exceeds that sum, no 0/1 rounding exists."
+        }
+      }
+    },
+    {
+      "component_id": "R007",
+      "status": "blocked_evidence",
+      "segment_ids": [
+        "SEG-M-NEG-001"
+      ],
+      "control_keys": [
+        {
+          "scope_id": "S-NEG",
+          "billing_day": "2024-11-08",
+          "rate_id": "R-NEG"
+        }
+      ],
+      "atom_ids": [],
+      "slice_count": 0,
+      "all_allocated": false,
+      "allocated_wh_if_complete": 0,
+      "amount_fraction_if_complete": "0",
+      "issues": [
+        {
+          "segment_id": "SEG-M-NEG-001",
+          "code": "unvouchered_negative_drop",
+          "message": "cumulative Wh decreased; isolated instead of treating the decrease as negative consumption",
+          "start_value_wh": 200,
+          "end_value_wh": 150,
+          "raw_difference_wh": -50
+        }
+      ],
+      "evidence": {}
+    },
+    {
+      "component_id": "R008",
+      "status": "blocked_evidence",
+      "segment_ids": [
+        "SEG-M-PEND-NEW-001",
+        "SEG-M-PEND-OLD-001"
+      ],
+      "control_keys": [
+        {
+          "scope_id": "S-PEND",
+          "billing_day": "2024-11-07",
+          "rate_id": "R-PEND"
+        }
+      ],
+      "atom_ids": [],
+      "slice_count": 0,
+      "all_allocated": false,
+      "allocated_wh_if_complete": 0,
+      "amount_fraction_if_complete": "0",
+      "issues": [
+        {
+          "segment_id": "SEG-M-PEND-NEW-001",
+          "code": "missing_exchange_endpoint",
+          "message": "cross-exchange interval cannot be certified because old-end/new-start Wh is missing",
+          "refs": [
+            "V-PEND-INCOMPLETE:new_start"
+          ],
+          "voucher_ids": [
+            "V-PEND-INCOMPLETE"
+          ]
+        },
+        {
+          "segment_id": "SEG-M-PEND-OLD-001",
+          "code": "missing_exchange_endpoint",
+          "message": "cross-exchange interval cannot be certified because old-end/new-start Wh is missing",
+          "refs": [
+            "V-PEND-INCOMPLETE:old_end"
+          ],
+          "voucher_ids": [
+            "V-PEND-INCOMPLETE"
+          ]
+        }
+      ],
+      "evidence": {}
+    },
+    {
+      "component_id": "R009",
+      "status": "settled",
+      "segment_ids": [
+        "SEG-M-XDAY-001"
+      ],
+      "control_keys": [
+        {
+          "scope_id": "S-XDAY",
+          "billing_day": "2024-11-04",
+          "rate_id": "R-XD"
+        },
+        {
+          "scope_id": "S-XDAY",
+          "billing_day": "2024-11-05",
+          "rate_id": "R-XD"
+        }
+      ],
+      "atom_ids": [
+        "A00017",
+        "A00018"
+      ],
+      "slice_count": 2,
+      "all_allocated": true,
+      "allocated_wh_if_complete": 3,
+      "amount_fraction_if_complete": "15/4",
+      "issues": [],
+      "evidence": {
+        "baseline_convention": "allocated_wh = floor(q_wh) + z_e, z_e in {0,1} for non-integer q; integer q has z=0",
+        "prechecks": [
+          {
+            "segment_id": "SEG-M-XDAY-001",
+            "target_delta_wh": 3,
+            "sum_floor_wh": 2,
+            "required_ceil_increments": 1,
+            "fractional_slice_count": 2,
+            "local_bound_ok": true
+          },
+          {
+            "control": {
+              "scope_id": "S-XDAY",
+              "billing_day": "2024-11-04",
+              "rate_id": "R-XD"
+            },
+            "target_total_wh": 2,
+            "sum_floor_wh": 1,
+            "required_ceil_increments": 1,
+            "fractional_slice_count": 1,
+            "local_bound_ok": true
+          },
+          {
+            "control": {
+              "scope_id": "S-XDAY",
+              "billing_day": "2024-11-05",
+              "rate_id": "R-XD"
+            },
+            "target_total_wh": 1,
+            "sum_floor_wh": 1,
+            "required_ceil_increments": 0,
+            "fractional_slice_count": 1,
+            "local_bound_ok": true
+          }
+        ],
+        "required_segment_increments": 1,
+        "required_control_increments": 1,
+        "max_flow_increments": 1,
+        "target_flow_increments": 1
+      }
+    }
+  ],
+  "slices": [
+    {
+      "atom_id": "A00001",
+      "component_id": "R002",
+      "segment_id": "SEG-M-DST-001",
+      "control": {
+        "scope_id": "S-DST",
+        "billing_day": "2024-11-03",
+        "rate_id": "R-DST"
+      },
+      "interval_start_utc": "2024-11-03T05:30:00Z",
+      "interval_end_utc": "2024-11-03T06:30:00Z",
+      "duration_seconds": "3600",
+      "rational_wh": "2",
+      "floor_wh": 2,
+      "ceil_wh": 2,
+      "allocated_wh": 2,
+      "rounding": "exact_integer",
+      "unit_price": "2/3",
+      "amount_fraction": "4/3",
+      "basis": {
+        "rule_version": "integer-slice-flow-1.0.0",
+        "allocation_convention": "uniform by actual UTC duration",
+        "formula_wh": "2 * (3600) / (3600)",
+        "segment_id": "SEG-M-DST-001",
+        "meter_id": "M-DST",
+        "binding_id": "B-DST",
+        "point_id": "MP-DST",
+        "scope_id": "S-DST",
+        "calendar_id": "cal-ny",
+        "timezone": "America/New_York",
+        "billing_day": "2024-11-03",
+        "billing_day_start_utc": "2024-11-03T04:00:00Z",
+        "billing_day_end_utc": "2024-11-04T05:00:00Z",
+        "rate_id": "R-DST",
+        "tariff_version": "TV-DST-1",
+        "unit_price": "2/3",
+        "start_utc": "2024-11-03T05:30:00Z",
+        "end_utc": "2024-11-03T06:30:00Z",
+        "duration_seconds": "3600",
+        "segment_duration_seconds": "3600",
+        "half_open": "Intervals are [start_utc, end_utc); the end instant belongs to the next interval.",
+        "binding_raw": {
+          "binding_id": "B-DST",
+          "meter_id": "M-DST",
+          "point_id": "MP-DST",
+          "scope_id": "S-DST",
+          "valid_from": "2024-01-01T00:00:00-05:00",
+          "valid_to": "2025-01-01T00:00:00-05:00"
+        },
+        "tariff_basis": {
+          "tariff_version": "TV-DST-1",
+          "rate_id": "R-DST",
+          "all_day": true,
+          "effective_from": "2024-01-01T00:00:00-05:00",
+          "effective_to": "2025-01-01T00:00:00-05:00",
+          "unit_price": "2/3"
+        }
+      }
+    },
+    {
+      "atom_id": "A00002",
+      "component_id": "R003",
+      "segment_id": "SEG-M-EX-NEW-001",
+      "control": {
+        "scope_id": "S-EX",
+        "billing_day": "2024-11-06",
+        "rate_id": "R-EX"
+      },
+      "interval_start_utc": "2024-11-06T17:00:00Z",
+      "interval_end_utc": "2024-11-06T19:00:00Z",
+      "duration_seconds": "7200",
+      "rational_wh": "90",
+      "floor_wh": 90,
+      "ceil_wh": 90,
+      "allocated_wh": 90,
+      "rounding": "exact_integer",
+      "unit_price": "1",
+      "amount_fraction": "90",
+      "basis": {
+        "rule_version": "integer-slice-flow-1.0.0",
+        "allocation_convention": "uniform by actual UTC duration",
+        "formula_wh": "90 * (7200) / (7200)",
+        "segment_id": "SEG-M-EX-NEW-001",
+        "meter_id": "M-EX-NEW",
+        "binding_id": "B-EX-NEW",
+        "point_id": "MP-EX",
+        "scope_id": "S-EX",
+        "calendar_id": "cal-ny",
+        "timezone": "America/New_York",
+        "billing_day": "2024-11-06",
+        "billing_day_start_utc": "2024-11-06T05:00:00Z",
+        "billing_day_end_utc": "2024-11-07T05:00:00Z",
+        "rate_id": "R-EX",
+        "tariff_version": "TV-EX-1",
+        "unit_price": "1",
+        "start_utc": "2024-11-06T17:00:00Z",
+        "end_utc": "2024-11-06T19:00:00Z",
+        "duration_seconds": "7200",
+        "segment_duration_seconds": "7200",
+        "half_open": "Intervals are [start_utc, end_utc); the end instant belongs to the next interval.",
+        "binding_raw": {
+          "binding_id": "B-EX-NEW",
+          "meter_id": "M-EX-NEW",
+          "point_id": "MP-EX",
+          "scope_id": "S-EX",
+          "valid_from": "2024-01-01T00:00:00-05:00",
+          "valid_to": "2025-01-01T00:00:00-05:00"
+        },
+        "tariff_basis": {
+          "tariff_version": "TV-EX-1",
+          "rate_id": "R-EX",
+          "all_day": true,
+          "effective_from": "2024-01-01T00:00:00-05:00",
+          "effective_to": "2025-01-01T00:00:00-05:00",
+          "unit_price": "1"
+        }
+      }
+    },
+    {
+      "atom_id": "A00003",
+      "component_id": "R003",
+      "segment_id": "SEG-M-EX-OLD-001",
+      "control": {
+        "scope_id": "S-EX",
+        "billing_day": "2024-11-06",
+        "rate_id": "R-EX"
+      },
+      "interval_start_utc": "2024-11-06T15:00:00Z",
+      "interval_end_utc": "2024-11-06T17:00:00Z",
+      "duration_seconds": "7200",
+      "rational_wh": "200",
+      "floor_wh": 200,
+      "ceil_wh": 200,
+      "allocated_wh": 200,
+      "rounding": "exact_integer",
+      "unit_price": "1",
+      "amount_fraction": "200",
+      "basis": {
+        "rule_version": "integer-slice-flow-1.0.0",
+        "allocation_convention": "uniform by actual UTC duration",
+        "formula_wh": "200 * (7200) / (7200)",
+        "segment_id": "SEG-M-EX-OLD-001",
+        "meter_id": "M-EX-OLD",
+        "binding_id": "B-EX-OLD",
+        "point_id": "MP-EX",
+        "scope_id": "S-EX",
+        "calendar_id": "cal-ny",
+        "timezone": "America/New_York",
+        "billing_day": "2024-11-06",
+        "billing_day_start_utc": "2024-11-06T05:00:00Z",
+        "billing_day_end_utc": "2024-11-07T05:00:00Z",
+        "rate_id": "R-EX",
+        "tariff_version": "TV-EX-1",
+        "unit_price": "1",
+        "start_utc": "2024-11-06T15:00:00Z",
+        "end_utc": "2024-11-06T17:00:00Z",
+        "duration_seconds": "7200",
+        "segment_duration_seconds": "7200",
+        "half_open": "Intervals are [start_utc, end_utc); the end instant belongs to the next interval.",
+        "binding_raw": {
+          "binding_id": "B-EX-OLD",
+          "meter_id": "M-EX-OLD",
+          "point_id": "MP-EX",
+          "scope_id": "S-EX",
+          "valid_from": "2024-01-01T00:00:00-05:00",
+          "valid_to": "2025-01-01T00:00:00-05:00"
+        },
+        "tariff_basis": {
+          "tariff_version": "TV-EX-1",
+          "rate_id": "R-EX",
+          "all_day": true,
+          "effective_from": "2024-01-01T00:00:00-05:00",
+          "effective_to": "2025-01-01T00:00:00-05:00",
+          "unit_price": "1"
+        }
+      }
+    },
+    {
+      "atom_id": "A00004",
+      "component_id": "R004",
+      "segment_id": "SEG-M-H1-001",
+      "control": {
+        "scope_id": "S-HALL",
+        "billing_day": "2024-01-01",
+        "rate_id": "R-H"
+      },
+      "interval_start_utc": "2024-01-02T04:30:00Z",
+      "interval_end_utc": "2024-01-02T05:00:00Z",
+      "duration_seconds": "1800",
+      "rational_wh": "1/2",
+      "floor_wh": 0,
+      "ceil_wh": 1,
+      "allocated_wh": null,
+      "rounding": "unresolved",
+      "unit_price": "1",
+      "amount_fraction": null,
+      "basis": {
+        "rule_version": "integer-slice-flow-1.0.0",
+        "allocation_convention": "uniform by actual UTC duration",
+        "formula_wh": "1 * (1800) / (3600)",
+        "segment_id": "SEG-M-H1-001",
+        "meter_id": "M-H1",
+        "binding_id": "B-H1",
+        "point_id": "MP-H1",
+        "scope_id": "S-HALL",
+        "calendar_id": "cal-ny",
+        "timezone": "America/New_York",
+        "billing_day": "2024-01-01",
+        "billing_day_start_utc": "2024-01-01T05:00:00Z",
+        "billing_day_end_utc": "2024-01-02T05:00:00Z",
+        "rate_id": "R-H",
+        "tariff_version": "TV-HALL-1",
+        "unit_price": "1",
+        "start_utc": "2024-01-02T04:30:00Z",
+        "end_utc": "2024-01-02T05:00:00Z",
+        "duration_seconds": "1800",
+        "segment_duration_seconds": "3600",
+        "half_open": "Intervals are [start_utc, end_utc); the end instant belongs to the next interval.",
+        "binding_raw": {
+          "binding_id": "B-H1",
+          "meter_id": "M-H1",
+          "point_id": "MP-H1",
+          "scope_id": "S-HALL",
+          "valid_from": "2024-01-01T00:00:00-05:00",
+          "valid_to": "2025-01-01T00:00:00-05:00"
+        },
+        "tariff_basis": {
+          "tariff_version": "TV-HALL-1",
+          "rate_id": "R-H",
+          "all_day": true,
+          "effective_from": "2024-01-01T00:00:00-05:00",
+          "effective_to": "2025-01-01T00:00:00-05:00",
+          "unit_price": "1"
+        }
+      }
+    },
+    {
+      "atom_id": "A00005",
+      "component_id": "R004",
+      "segment_id": "SEG-M-H1-001",
+      "control": {
+        "scope_id": "S-HALL",
+        "billing_day": "2024-01-02",
+        "rate_id": "R-H"
+      },
+      "interval_start_utc": "2024-01-02T05:00:00Z",
+      "interval_end_utc": "2024-01-02T05:30:00Z",
+      "duration_seconds": "1800",
+      "rational_wh": "1/2",
+      "floor_wh": 0,
+      "ceil_wh": 1,
+      "allocated_wh": null,
+      "rounding": "unresolved",
+      "unit_price": "1",
+      "amount_fraction": null,
+      "basis": {
+        "rule_version": "integer-slice-flow-1.0.0",
+        "allocation_convention": "uniform by actual UTC duration",
+        "formula_wh": "1 * (1800) / (3600)",
+        "segment_id": "SEG-M-H1-001",
+        "meter_id": "M-H1",
+        "binding_id": "B-H1",
+        "point_id": "MP-H1",
+        "scope_id": "S-HALL",
+        "calendar_id": "cal-ny",
+        "timezone": "America/New_York",
+        "billing_day": "2024-01-02",
+        "billing_day_start_utc": "2024-01-02T05:00:00Z",
+        "billing_day_end_utc": "2024-01-03T05:00:00Z",
+        "rate_id": "R-H",
+        "tariff_version": "TV-HALL-1",
+        "unit_price": "1",
+        "start_utc": "2024-01-02T05:00:00Z",
+        "end_utc": "2024-01-02T05:30:00Z",
+        "duration_seconds": "1800",
+        "segment_duration_seconds": "3600",
+        "half_open": "Intervals are [start_utc, end_utc); the end instant belongs to the next interval.",
+        "binding_raw": {
+          "binding_id": "B-H1",
+          "meter_id": "M-H1",
+          "point_id": "MP-H1",
+          "scope_id": "S-HALL",
+          "valid_from": "2024-01-01T00:00:00-05:00",
+          "valid_to": "2025-01-01T00:00:00-05:00"
+        },
+        "tariff_basis": {
+          "tariff_version": "TV-HALL-1",
+          "rate_id": "R-H",
+          "all_day": true,
+          "effective_from": "2024-01-01T00:00:00-05:00",
+          "effective_to": "2025-01-01T00:00:00-05:00",
+          "unit_price": "1"
+        }
+      }
+    },
+    {
+      "atom_id": "A00006",
+      "component_id": "R004",
+      "segment_id": "SEG-M-H2-001",
+      "control": {
+        "scope_id": "S-HALL",
+        "billing_day": "2024-01-01",
+        "rate_id": "R-H"
+      },
+      "interval_start_utc": "2024-01-02T04:45:00Z",
+      "interval_end_utc": "2024-01-02T05:00:00Z",
+      "duration_seconds": "900",
+      "rational_wh": "1/2",
+      "floor_wh": 0,
+      "ceil_wh": 1,
+      "allocated_wh": null,
+      "rounding": "unresolved",
+      "unit_price": "1",
+      "amount_fraction": null,
+      "basis": {
+        "rule_version": "integer-slice-flow-1.0.0",
+        "allocation_convention": "uniform by actual UTC duration",
+        "formula_wh": "1 * (900) / (1800)",
+        "segment_id": "SEG-M-H2-001",
+        "meter_id": "M-H2",
+        "binding_id": "B-H2",
+        "point_id": "MP-H2",
+        "scope_id": "S-HALL",
+        "calendar_id": "cal-ny",
+        "timezone": "America/New_York",
+        "billing_day": "2024-01-01",
+        "billing_day_start_utc": "2024-01-01T05:00:00Z",
+        "billing_day_end_utc": "2024-01-02T05:00:00Z",
+        "rate_id": "R-H",
+        "tariff_version": "TV-HALL-1",
+        "unit_price": "1",
+        "start_utc": "2024-01-02T04:45:00Z",
+        "end_utc": "2024-01-02T05:00:00Z",
+        "duration_seconds": "900",
+        "segment_duration_seconds": "1800",
+        "half_open": "Intervals are [start_utc, end_utc); the end instant belongs to the next interval.",
+        "binding_raw": {
+          "binding_id": "B-H2",
+          "meter_id": "M-H2",
+          "point_id": "MP-H2",
+          "scope_id": "S-HALL",
+          "valid_from": "2024-01-01T00:00:00-05:00",
+          "valid_to": "2025-01-01T00:00:00-05:00"
+        },
+        "tariff_basis": {
+          "tariff_version": "TV-HALL-1",
+          "rate_id": "R-H",
+          "all_day": true,
+          "effective_from": "2024-01-01T00:00:00-05:00",
+          "effective_to": "2025-01-01T00:00:00-05:00",
+          "unit_price": "1"
+        }
+      }
+    },
+    {
+      "atom_id": "A00007",
+      "component_id": "R004",
+      "segment_id": "SEG-M-H2-001",
+      "control": {
+        "scope_id": "S-HALL",
+        "billing_day": "2024-01-02",
+        "rate_id": "R-H"
+      },
+      "interval_start_utc": "2024-01-02T05:00:00Z",
+      "interval_end_utc": "2024-01-02T05:15:00Z",
+      "duration_seconds": "900",
+      "rational_wh": "1/2",
+      "floor_wh": 0,
+      "ceil_wh": 1,
+      "allocated_wh": null,
+      "rounding": "unresolved",
+      "unit_price": "1",
+      "amount_fraction": null,
+      "basis": {
+        "rule_version": "integer-slice-flow-1.0.0",
+        "allocation_convention": "uniform by actual UTC duration",
+        "formula_wh": "1 * (900) / (1800)",
+        "segment_id": "SEG-M-H2-001",
+        "meter_id": "M-H2",
+        "binding_id": "B-H2",
+        "point_id": "MP-H2",
+        "scope_id": "S-HALL",
+        "calendar_id": "cal-ny",
+        "timezone": "America/New_York",
+        "billing_day": "2024-01-02",
+        "billing_day_start_utc": "2024-01-02T05:00:00Z",
+        "billing_day_end_utc": "2024-01-03T05:00:00Z",
+        "rate_id": "R-H",
+        "tariff_version": "TV-HALL-1",
+        "unit_price": "1",
+        "start_utc": "2024-01-02T05:00:00Z",
+        "end_utc": "2024-01-02T05:15:00Z",
+        "duration_seconds": "900",
+        "segment_duration_seconds": "1800",
+        "half_open": "Intervals are [start_utc, end_utc); the end instant belongs to the next interval.",
+        "binding_raw": {
+          "binding_id": "B-H2",
+          "meter_id": "M-H2",
+          "point_id": "MP-H2",
+          "scope_id": "S-HALL",
+          "valid_from": "2024-01-01T00:00:00-05:00",
+          "valid_to": "2025-01-01T00:00:00-05:00"
+        },
+        "tariff_basis": {
+          "tariff_version": "TV-HALL-1",
+          "rate_id": "R-H",
+          "all_day": true,
+          "effective_from": "2024-01-01T00:00:00-05:00",
+          "effective_to": "2025-01-01T00:00:00-05:00",
+          "unit_price": "1"
+        }
+      }
+    },
+    {
+      "atom_id": "A00008",
+      "component_id": "R005",
+      "segment_id": "SEG-M-H3-001",
+      "control": {
+        "scope_id": "S-HALL",
+        "billing_day": "2024-01-03",
+        "rate_id": "R-H"
+      },
+      "interval_start_utc": "2024-01-04T04:30:00Z",
+      "interval_end_utc": "2024-01-04T05:00:00Z",
+      "duration_seconds": "1800",
+      "rational_wh": "1/2",
+      "floor_wh": 0,
+      "ceil_wh": 1,
+      "allocated_wh": null,
+      "rounding": "unresolved",
+      "unit_price": "1",
+      "amount_fraction": null,
+      "basis": {
+        "rule_version": "integer-slice-flow-1.0.0",
+        "allocation_convention": "uniform by actual UTC duration",
+        "formula_wh": "1 * (1800) / (3600)",
+        "segment_id": "SEG-M-H3-001",
+        "meter_id": "M-H3",
+        "binding_id": "B-H3",
+        "point_id": "MP-H3",
+        "scope_id": "S-HALL",
+        "calendar_id": "cal-ny",
+        "timezone": "America/New_York",
+        "billing_day": "2024-01-03",
+        "billing_day_start_utc": "2024-01-03T05:00:00Z",
+        "billing_day_end_utc": "2024-01-04T05:00:00Z",
+        "rate_id": "R-H",
+        "tariff_version": "TV-HALL-1",
+        "unit_price": "1",
+        "start_utc": "2024-01-04T04:30:00Z",
+        "end_utc": "2024-01-04T05:00:00Z",
+        "duration_seconds": "1800",
+        "segment_duration_seconds": "3600",
+        "half_open": "Intervals are [start_utc, end_utc); the end instant belongs to the next interval.",
+        "binding_raw": {
+          "binding_id": "B-H3",
+          "meter_id": "M-H3",
+          "point_id": "MP-H3",
+          "scope_id": "S-HALL",
+          "valid_from": "2024-01-01T00:00:00-05:00",
+          "valid_to": "2025-01-01T00:00:00-05:00"
+        },
+        "tariff_basis": {
+          "tariff_version": "TV-HALL-1",
+          "rate_id": "R-H",
+          "all_day": true,
+          "effective_from": "2024-01-01T00:00:00-05:00",
+          "effective_to": "2025-01-01T00:00:00-05:00",
+          "unit_price": "1"
+        }
+      }
+    },
+    {
+      "atom_id": "A00009",
+      "component_id": "R005",
+      "segment_id": "SEG-M-H3-001",
+      "control": {
+        "scope_id": "S-HALL",
+        "billing_day": "2024-01-04",
+        "rate_id": "R-H"
+      },
+      "interval_start_utc": "2024-01-04T05:00:00Z",
+      "interval_end_utc": "2024-01-04T05:30:00Z",
+      "duration_seconds": "1800",
+      "rational_wh": "1/2",
+      "floor_wh": 0,
+      "ceil_wh": 1,
+      "allocated_wh": null,
+      "rounding": "unresolved",
+      "unit_price": "1",
+      "amount_fraction": null,
+      "basis": {
+        "rule_version": "integer-slice-flow-1.0.0",
+        "allocation_convention": "uniform by actual UTC duration",
+        "formula_wh": "1 * (1800) / (3600)",
+        "segment_id": "SEG-M-H3-001",
+        "meter_id": "M-H3",
+        "binding_id": "B-H3",
+        "point_id": "MP-H3",
+        "scope_id": "S-HALL",
+        "calendar_id": "cal-ny",
+        "timezone": "America/New_York",
+        "billing_day": "2024-01-04",
+        "billing_day_start_utc": "2024-01-04T05:00:00Z",
+        "billing_day_end_utc": "2024-01-05T05:00:00Z",
+        "rate_id": "R-H",
+        "tariff_version": "TV-HALL-1",
+        "unit_price": "1",
+        "start_utc": "2024-01-04T05:00:00Z",
+        "end_utc": "2024-01-04T05:30:00Z",
+        "duration_seconds": "1800",
+        "segment_duration_seconds": "3600",
+        "half_open": "Intervals are [start_utc, end_utc); the end instant belongs to the next interval.",
+        "binding_raw": {
+          "binding_id": "B-H3",
+          "meter_id": "M-H3",
+          "point_id": "MP-H3",
+          "scope_id": "S-HALL",
+          "valid_from": "2024-01-01T00:00:00-05:00",
+          "valid_to": "2025-01-01T00:00:00-05:00"
+        },
+        "tariff_basis": {
+          "tariff_version": "TV-HALL-1",
+          "rate_id": "R-H",
+          "all_day": true,
+          "effective_from": "2024-01-01T00:00:00-05:00",
+          "effective_to": "2025-01-01T00:00:00-05:00",
+          "unit_price": "1"
+        }
+      }
+    },
+    {
+      "atom_id": "A00010",
+      "component_id": "R006",
+      "segment_id": "SEG-M-HQ1-001",
+      "control": {
+        "scope_id": "S-HQ",
+        "billing_day": "2024-02-01",
+        "rate_id": "R-H"
+      },
+      "interval_start_utc": "2024-02-01T12:00:00Z",
+      "interval_end_utc": "2024-02-01T13:00:00Z",
+      "duration_seconds": "3600",
+      "rational_wh": "1/2",
+      "floor_wh": 0,
+      "ceil_wh": 1,
+      "allocated_wh": null,
+      "rounding": "unresolved",
+      "unit_price": "1",
+      "amount_fraction": null,
+      "basis": {
+        "rule_version": "integer-slice-flow-1.0.0",
+        "allocation_convention": "uniform by actual UTC duration",
+        "formula_wh": "1 * (3600) / (7200)",
+        "segment_id": "SEG-M-HQ1-001",
+        "meter_id": "M-HQ1",
+        "binding_id": "B-HQ1",
+        "point_id": "MP-HQ1",
+        "scope_id": "S-HQ",
+        "calendar_id": "cal-ny",
+        "timezone": "America/New_York",
+        "billing_day": "2024-02-01",
+        "billing_day_start_utc": "2024-02-01T05:00:00Z",
+        "billing_day_end_utc": "2024-02-02T05:00:00Z",
+        "rate_id": "R-H",
+        "tariff_version": "TV-HQ-H-A",
+        "unit_price": "1",
+        "start_utc": "2024-02-01T12:00:00Z",
+        "end_utc": "2024-02-01T13:00:00Z",
+        "duration_seconds": "3600",
+        "segment_duration_seconds": "7200",
+        "half_open": "Intervals are [start_utc, end_utc); the end instant belongs to the next interval.",
+        "binding_raw": {
+          "binding_id": "B-HQ1",
+          "meter_id": "M-HQ1",
+          "point_id": "MP-HQ1",
+          "scope_id": "S-HQ",
+          "valid_from": "2024-01-01T00:00:00-05:00",
+          "valid_to": "2025-01-01T00:00:00-05:00"
+        },
+        "tariff_basis": {
+          "tariff_version": "TV-HQ-H-A",
+          "rate_id": "R-H",
+          "all_day": true,
+          "effective_from": "2024-02-01T00:00:00-05:00",
+          "effective_to": "2024-02-01T08:00:00-05:00",
+          "unit_price": "1"
+        }
+      }
+    },
+    {
+      "atom_id": "A00011",
+      "component_id": "R006",
+      "segment_id": "SEG-M-HQ1-001",
+      "control": {
+        "scope_id": "S-HQ",
+        "billing_day": "2024-02-01",
+        "rate_id": "R-H"
+      },
+      "interval_start_utc": "2024-02-01T13:00:00Z",
+      "interval_end_utc": "2024-02-01T14:00:00Z",
+      "duration_seconds": "3600",
+      "rational_wh": "1/2",
+      "floor_wh": 0,
+      "ceil_wh": 1,
+      "allocated_wh": null,
+      "rounding": "unresolved",
+      "unit_price": "1",
+      "amount_fraction": null,
+      "basis": {
+        "rule_version": "integer-slice-flow-1.0.0",
+        "allocation_convention": "uniform by actual UTC duration",
+        "formula_wh": "1 * (3600) / (7200)",
+        "segment_id": "SEG-M-HQ1-001",
+        "meter_id": "M-HQ1",
+        "binding_id": "B-HQ1",
+        "point_id": "MP-HQ1",
+        "scope_id": "S-HQ",
+        "calendar_id": "cal-ny",
+        "timezone": "America/New_York",
+        "billing_day": "2024-02-01",
+        "billing_day_start_utc": "2024-02-01T05:00:00Z",
+        "billing_day_end_utc": "2024-02-02T05:00:00Z",
+        "rate_id": "R-H",
+        "tariff_version": "TV-HQ-H-B",
+        "unit_price": "1",
+        "start_utc": "2024-02-01T13:00:00Z",
+        "end_utc": "2024-02-01T14:00:00Z",
+        "duration_seconds": "3600",
+        "segment_duration_seconds": "7200",
+        "half_open": "Intervals are [start_utc, end_utc); the end instant belongs to the next interval.",
+        "binding_raw": {
+          "binding_id": "B-HQ1",
+          "meter_id": "M-HQ1",
+          "point_id": "MP-HQ1",
+          "scope_id": "S-HQ",
+          "valid_from": "2024-01-01T00:00:00-05:00",
+          "valid_to": "2025-01-01T00:00:00-05:00"
+        },
+        "tariff_basis": {
+          "tariff_version": "TV-HQ-H-B",
+          "rate_id": "R-H",
+          "all_day": true,
+          "effective_from": "2024-02-01T08:00:00-05:00",
+          "effective_to": "2024-02-01T13:00:00-05:00",
+          "unit_price": "1"
+        }
+      }
+    },
+    {
+      "atom_id": "A00012",
+      "component_id": "R006",
+      "segment_id": "SEG-M-HQ2-001",
+      "control": {
+        "scope_id": "S-HQ",
+        "billing_day": "2024-02-01",
+        "rate_id": "R-H"
+      },
+      "interval_start_utc": "2024-02-01T12:30:00Z",
+      "interval_end_utc": "2024-02-01T13:00:00Z",
+      "duration_seconds": "1800",
+      "rational_wh": "1/2",
+      "floor_wh": 0,
+      "ceil_wh": 1,
+      "allocated_wh": null,
+      "rounding": "unresolved",
+      "unit_price": "1",
+      "amount_fraction": null,
+      "basis": {
+        "rule_version": "integer-slice-flow-1.0.0",
+        "allocation_convention": "uniform by actual UTC duration",
+        "formula_wh": "1 * (1800) / (3600)",
+        "segment_id": "SEG-M-HQ2-001",
+        "meter_id": "M-HQ2",
+        "binding_id": "B-HQ2",
+        "point_id": "MP-HQ2",
+        "scope_id": "S-HQ",
+        "calendar_id": "cal-ny",
+        "timezone": "America/New_York",
+        "billing_day": "2024-02-01",
+        "billing_day_start_utc": "2024-02-01T05:00:00Z",
+        "billing_day_end_utc": "2024-02-02T05:00:00Z",
+        "rate_id": "R-H",
+        "tariff_version": "TV-HQ-H-A",
+        "unit_price": "1",
+        "start_utc": "2024-02-01T12:30:00Z",
+        "end_utc": "2024-02-01T13:00:00Z",
+        "duration_seconds": "1800",
+        "segment_duration_seconds": "3600",
+        "half_open": "Intervals are [start_utc, end_utc); the end instant belongs to the next interval.",
+        "binding_raw": {
+          "binding_id": "B-HQ2",
+          "meter_id": "M-HQ2",
+          "point_id": "MP-HQ2",
+          "scope_id": "S-HQ",
+          "valid_from": "2024-01-01T00:00:00-05:00",
+          "valid_to": "2025-01-01T00:00:00-05:00"
+        },
+        "tariff_basis": {
+          "tariff_version": "TV-HQ-H-A",
+          "rate_id": "R-H",
+          "all_day": true,
+          "effective_from": "2024-02-01T00:00:00-05:00",
+          "effective_to": "2024-02-01T08:00:00-05:00",
+          "unit_price": "1"
+        }
+      }
+    },
+    {
+      "atom_id": "A00013",
+      "component_id": "R006",
+      "segment_id": "SEG-M-HQ2-001",
+      "control": {
+        "scope_id": "S-HQ",
+        "billing_day": "2024-02-01",
+        "rate_id": "R-H"
+      },
+      "interval_start_utc": "2024-02-01T13:00:00Z",
+      "interval_end_utc": "2024-02-01T13:30:00Z",
+      "duration_seconds": "1800",
+      "rational_wh": "1/2",
+      "floor_wh": 0,
+      "ceil_wh": 1,
+      "allocated_wh": null,
+      "rounding": "unresolved",
+      "unit_price": "1",
+      "amount_fraction": null,
+      "basis": {
+        "rule_version": "integer-slice-flow-1.0.0",
+        "allocation_convention": "uniform by actual UTC duration",
+        "formula_wh": "1 * (1800) / (3600)",
+        "segment_id": "SEG-M-HQ2-001",
+        "meter_id": "M-HQ2",
+        "binding_id": "B-HQ2",
+        "point_id": "MP-HQ2",
+        "scope_id": "S-HQ",
+        "calendar_id": "cal-ny",
+        "timezone": "America/New_York",
+        "billing_day": "2024-02-01",
+        "billing_day_start_utc": "2024-02-01T05:00:00Z",
+        "billing_day_end_utc": "2024-02-02T05:00:00Z",
+        "rate_id": "R-H",
+        "tariff_version": "TV-HQ-H-B",
+        "unit_price": "1",
+        "start_utc": "2024-02-01T13:00:00Z",
+        "end_utc": "2024-02-01T13:30:00Z",
+        "duration_seconds": "1800",
+        "segment_duration_seconds": "3600",
+        "half_open": "Intervals are [start_utc, end_utc); the end instant belongs to the next interval.",
+        "binding_raw": {
+          "binding_id": "B-HQ2",
+          "meter_id": "M-HQ2",
+          "point_id": "MP-HQ2",
+          "scope_id": "S-HQ",
+          "valid_from": "2024-01-01T00:00:00-05:00",
+          "valid_to": "2025-01-01T00:00:00-05:00"
+        },
+        "tariff_basis": {
+          "tariff_version": "TV-HQ-H-B",
+          "rate_id": "R-H",
+          "all_day": true,
+          "effective_from": "2024-02-01T08:00:00-05:00",
+          "effective_to": "2024-02-01T13:00:00-05:00",
+          "unit_price": "1"
+        }
+      }
+    },
+    {
+      "atom_id": "A00014",
+      "component_id": "R006",
+      "segment_id": "SEG-M-HQ3-001",
+      "control": {
+        "scope_id": "S-HQ",
+        "billing_day": "2024-02-01",
+        "rate_id": "R-H"
+      },
+      "interval_start_utc": "2024-02-01T17:00:00Z",
+      "interval_end_utc": "2024-02-01T18:00:00Z",
+      "duration_seconds": "3600",
+      "rational_wh": "1/3",
+      "floor_wh": 0,
+      "ceil_wh": 1,
+      "allocated_wh": null,
+      "rounding": "unresolved",
+      "unit_price": "1",
+      "amount_fraction": null,
+      "basis": {
+        "rule_version": "integer-slice-flow-1.0.0",
+        "allocation_convention": "uniform by actual UTC duration",
+        "formula_wh": "1 * (3600) / (10800)",
+        "segment_id": "SEG-M-HQ3-001",
+        "meter_id": "M-HQ3",
+        "binding_id": "B-HQ3",
+        "point_id": "MP-HQ3",
+        "scope_id": "S-HQ",
+        "calendar_id": "cal-ny",
+        "timezone": "America/New_York",
+        "billing_day": "2024-02-01",
+        "billing_day_start_utc": "2024-02-01T05:00:00Z",
+        "billing_day_end_utc": "2024-02-02T05:00:00Z",
+        "rate_id": "R-H",
+        "tariff_version": "TV-HQ-H-B",
+        "unit_price": "1",
+        "start_utc": "2024-02-01T17:00:00Z",
+        "end_utc": "2024-02-01T18:00:00Z",
+        "duration_seconds": "3600",
+        "segment_duration_seconds": "10800",
+        "half_open": "Intervals are [start_utc, end_utc); the end instant belongs to the next interval.",
+        "binding_raw": {
+          "binding_id": "B-HQ3",
+          "meter_id": "M-HQ3",
+          "point_id": "MP-HQ3",
+          "scope_id": "S-HQ",
+          "valid_from": "2024-01-01T00:00:00-05:00",
+          "valid_to": "2025-01-01T00:00:00-05:00"
+        },
+        "tariff_basis": {
+          "tariff_version": "TV-HQ-H-B",
+          "rate_id": "R-H",
+          "all_day": true,
+          "effective_from": "2024-02-01T08:00:00-05:00",
+          "effective_to": "2024-02-01T13:00:00-05:00",
+          "unit_price": "1"
+        }
+      }
+    },
+    {
+      "atom_id": "A00015",
+      "component_id": "R006",
+      "segment_id": "SEG-M-HQ3-001",
+      "control": {
+        "scope_id": "S-HQ",
+        "billing_day": "2024-02-01",
+        "rate_id": "R-M"
+      },
+      "interval_start_utc": "2024-02-01T18:00:00Z",
+      "interval_end_utc": "2024-02-01T19:00:00Z",
+      "duration_seconds": "3600",
+      "rational_wh": "1/3",
+      "floor_wh": 0,
+      "ceil_wh": 1,
+      "allocated_wh": null,
+      "rounding": "unresolved",
+      "unit_price": "1",
+      "amount_fraction": null,
+      "basis": {
+        "rule_version": "integer-slice-flow-1.0.0",
+        "allocation_convention": "uniform by actual UTC duration",
+        "formula_wh": "1 * (3600) / (10800)",
+        "segment_id": "SEG-M-HQ3-001",
+        "meter_id": "M-HQ3",
+        "binding_id": "B-HQ3",
+        "point_id": "MP-HQ3",
+        "scope_id": "S-HQ",
+        "calendar_id": "cal-ny",
+        "timezone": "America/New_York",
+        "billing_day": "2024-02-01",
+        "billing_day_start_utc": "2024-02-01T05:00:00Z",
+        "billing_day_end_utc": "2024-02-02T05:00:00Z",
+        "rate_id": "R-M",
+        "tariff_version": "TV-HQ-M",
+        "unit_price": "1",
+        "start_utc": "2024-02-01T18:00:00Z",
+        "end_utc": "2024-02-01T19:00:00Z",
+        "duration_seconds": "3600",
+        "segment_duration_seconds": "10800",
+        "half_open": "Intervals are [start_utc, end_utc); the end instant belongs to the next interval.",
+        "binding_raw": {
+          "binding_id": "B-HQ3",
+          "meter_id": "M-HQ3",
+          "point_id": "MP-HQ3",
+          "scope_id": "S-HQ",
+          "valid_from": "2024-01-01T00:00:00-05:00",
+          "valid_to": "2025-01-01T00:00:00-05:00"
+        },
+        "tariff_basis": {
+          "tariff_version": "TV-HQ-M",
+          "rate_id": "R-M",
+          "all_day": true,
+          "effective_from": "2024-02-01T13:00:00-05:00",
+          "effective_to": "2024-02-01T14:00:00-05:00",
+          "unit_price": "1"
+        }
+      }
+    },
+    {
+      "atom_id": "A00016",
+      "component_id": "R006",
+      "segment_id": "SEG-M-HQ3-001",
+      "control": {
+        "scope_id": "S-HQ",
+        "billing_day": "2024-02-01",
+        "rate_id": "R-L"
+      },
+      "interval_start_utc": "2024-02-01T19:00:00Z",
+      "interval_end_utc": "2024-02-01T20:00:00Z",
+      "duration_seconds": "3600",
+      "rational_wh": "1/3",
+      "floor_wh": 0,
+      "ceil_wh": 1,
+      "allocated_wh": null,
+      "rounding": "unresolved",
+      "unit_price": "1",
+      "amount_fraction": null,
+      "basis": {
+        "rule_version": "integer-slice-flow-1.0.0",
+        "allocation_convention": "uniform by actual UTC duration",
+        "formula_wh": "1 * (3600) / (10800)",
+        "segment_id": "SEG-M-HQ3-001",
+        "meter_id": "M-HQ3",
+        "binding_id": "B-HQ3",
+        "point_id": "MP-HQ3",
+        "scope_id": "S-HQ",
+        "calendar_id": "cal-ny",
+        "timezone": "America/New_York",
+        "billing_day": "2024-02-01",
+        "billing_day_start_utc": "2024-02-01T05:00:00Z",
+        "billing_day_end_utc": "2024-02-02T05:00:00Z",
+        "rate_id": "R-L",
+        "tariff_version": "TV-HQ-L",
+        "unit_price": "1",
+        "start_utc": "2024-02-01T19:00:00Z",
+        "end_utc": "2024-02-01T20:00:00Z",
+        "duration_seconds": "3600",
+        "segment_duration_seconds": "10800",
+        "half_open": "Intervals are [start_utc, end_utc); the end instant belongs to the next interval.",
+        "binding_raw": {
+          "binding_id": "B-HQ3",
+          "meter_id": "M-HQ3",
+          "point_id": "MP-HQ3",
+          "scope_id": "S-HQ",
+          "valid_from": "2024-01-01T00:00:00-05:00",
+          "valid_to": "2025-01-01T00:00:00-05:00"
+        },
+        "tariff_basis": {
+          "tariff_version": "TV-HQ-L",
+          "rate_id": "R-L",
+          "all_day": true,
+          "effective_from": "2024-02-01T14:00:00-05:00",
+          "effective_to": "2024-02-01T15:00:00-05:00",
+          "unit_price": "1"
+        }
+      }
+    },
+    {
+      "atom_id": "A00017",
+      "component_id": "R009",
+      "segment_id": "SEG-M-XDAY-001",
+      "control": {
+        "scope_id": "S-XDAY",
+        "billing_day": "2024-11-04",
+        "rate_id": "R-XD"
+      },
+      "interval_start_utc": "2024-11-05T04:30:00Z",
+      "interval_end_utc": "2024-11-05T05:00:00Z",
+      "duration_seconds": "1800",
+      "rational_wh": "3/2",
+      "floor_wh": 1,
+      "ceil_wh": 2,
+      "allocated_wh": 2,
+      "rounding": "ceil",
+      "unit_price": "5/4",
+      "amount_fraction": "5/2",
+      "basis": {
+        "rule_version": "integer-slice-flow-1.0.0",
+        "allocation_convention": "uniform by actual UTC duration",
+        "formula_wh": "3 * (1800) / (3600)",
+        "segment_id": "SEG-M-XDAY-001",
+        "meter_id": "M-XDAY",
+        "binding_id": "B-XD",
+        "point_id": "MP-XD",
+        "scope_id": "S-XDAY",
+        "calendar_id": "cal-ny",
+        "timezone": "America/New_York",
+        "billing_day": "2024-11-04",
+        "billing_day_start_utc": "2024-11-04T05:00:00Z",
+        "billing_day_end_utc": "2024-11-05T05:00:00Z",
+        "rate_id": "R-XD",
+        "tariff_version": "TV-XD-1",
+        "unit_price": "5/4",
+        "start_utc": "2024-11-05T04:30:00Z",
+        "end_utc": "2024-11-05T05:00:00Z",
+        "duration_seconds": "1800",
+        "segment_duration_seconds": "3600",
+        "half_open": "Intervals are [start_utc, end_utc); the end instant belongs to the next interval.",
+        "binding_raw": {
+          "binding_id": "B-XD",
+          "meter_id": "M-XDAY",
+          "point_id": "MP-XD",
+          "scope_id": "S-XDAY",
+          "valid_from": "2024-01-01T00:00:00-05:00",
+          "valid_to": "2025-01-01T00:00:00-05:00"
+        },
+        "tariff_basis": {
+          "tariff_version": "TV-XD-1",
+          "rate_id": "R-XD",
+          "all_day": true,
+          "effective_from": "2024-01-01T00:00:00-05:00",
+          "effective_to": "2025-01-01T00:00:00-05:00",
+          "unit_price": "5/4"
+        }
+      }
+    },
+    {
+      "atom_id": "A00018",
+      "component_id": "R009",
+      "segment_id": "SEG-M-XDAY-001",
+      "control": {
+        "scope_id": "S-XDAY",
+        "billing_day": "2024-11-05",
+        "rate_id": "R-XD"
+      },
+      "interval_start_utc": "2024-11-05T05:00:00Z",
+      "interval_end_utc": "2024-11-05T05:30:00Z",
+      "duration_seconds": "1800",
+      "rational_wh": "3/2",
+      "floor_wh": 1,
+      "ceil_wh": 2,
+      "allocated_wh": 1,
+      "rounding": "floor",
+      "unit_price": "5/4",
+      "amount_fraction": "5/4",
+      "basis": {
+        "rule_version": "integer-slice-flow-1.0.0",
+        "allocation_convention": "uniform by actual UTC duration",
+        "formula_wh": "3 * (1800) / (3600)",
+        "segment_id": "SEG-M-XDAY-001",
+        "meter_id": "M-XDAY",
+        "binding_id": "B-XD",
+        "point_id": "MP-XD",
+        "scope_id": "S-XDAY",
+        "calendar_id": "cal-ny",
+        "timezone": "America/New_York",
+        "billing_day": "2024-11-05",
+        "billing_day_start_utc": "2024-11-05T05:00:00Z",
+        "billing_day_end_utc": "2024-11-06T05:00:00Z",
+        "rate_id": "R-XD",
+        "tariff_version": "TV-XD-1",
+        "unit_price": "5/4",
+        "start_utc": "2024-11-05T05:00:00Z",
+        "end_utc": "2024-11-05T05:30:00Z",
+        "duration_seconds": "1800",
+        "segment_duration_seconds": "3600",
+        "half_open": "Intervals are [start_utc, end_utc); the end instant belongs to the next interval.",
+        "binding_raw": {
+          "binding_id": "B-XD",
+          "meter_id": "M-XDAY",
+          "point_id": "MP-XD",
+          "scope_id": "S-XDAY",
+          "valid_from": "2024-01-01T00:00:00-05:00",
+          "valid_to": "2025-01-01T00:00:00-05:00"
+        },
+        "tariff_basis": {
+          "tariff_version": "TV-XD-1",
+          "rate_id": "R-XD",
+          "all_day": true,
+          "effective_from": "2024-01-01T00:00:00-05:00",
+          "effective_to": "2025-01-01T00:00:00-05:00",
+          "unit_price": "5/4"
+        }
+      }
+    }
+  ],
+  "quarantined_segments": [
+    {
+      "segment_id": "SEG-M-AMB-001",
+      "meter_id": "M-AMB",
+      "status": "intersection_ambiguous",
+      "start_utc": "2024-11-09T15:00:00Z",
+      "end_utc": "2024-11-09T17:00:00Z",
+      "duration_seconds": "7200",
+      "raw_difference_wh": 4,
+      "issues": [
+        {
+          "code": "ambiguous_binding",
+          "message": "multiple binding rows cover the same half-open interval",
+          "start_utc": "2024-11-09T15:00:00Z",
+          "end_utc": "2024-11-09T17:00:00Z",
+          "binding_ids": [
+            "B-AMB-1",
+            "B-AMB-2"
+          ]
+        }
+      ],
+      "evidence": {
+        "meter_id": "M-AMB",
+        "start_anchors": [
+          {
+            "ref_id": "AMB-R1",
+            "kind": "valid_reading",
+            "declared_ts": "2024-11-09T10:00:00-05:00",
+            "utc": "2024-11-09T15:00:00Z",
+            "value_wh": 0,
+            "evidence": {
+              "reading_id": "AMB-R1",
+              "path": "readings[10]",
+              "raw": {
+                "reading_id": "AMB-R1",
+                "meter_id": "M-AMB",
+                "ts": "2024-11-09T10:00:00-05:00",
+                "value_wh": 0
+              }
+            }
+          }
+        ],
+        "end_anchors": [
+          {
+            "ref_id": "AMB-R2",
+            "kind": "valid_reading",
+            "declared_ts": "2024-11-09T12:00:00-05:00",
+            "utc": "2024-11-09T17:00:00Z",
+            "value_wh": 4,
+            "evidence": {
+              "reading_id": "AMB-R2",
+              "path": "readings[11]",
+              "raw": {
+                "reading_id": "AMB-R2",
+                "meter_id": "M-AMB",
+                "ts": "2024-11-09T12:00:00-05:00",
+                "value_wh": 4
+              }
+            }
+          }
+        ],
+        "start_utc": "2024-11-09T15:00:00Z",
+        "end_utc": "2024-11-09T17:00:00Z",
+        "duration_seconds": "7200",
+        "interval_note": "Intervals are [start_utc, end_utc); the end instant belongs to the next interval.",
+        "warnings": []
+      },
+      "candidate_control_keys": [
+        {
+          "scope_id": "S-AMB1",
+          "billing_day": "2024-11-09",
+          "rate_id": "R-AMB"
+        },
+        {
+          "scope_id": "S-AMB2",
+          "billing_day": "2024-11-09",
+          "rate_id": "R-AMB"
+        }
+      ],
+      "diagnostic_intervals": []
+    },
+    {
+      "segment_id": "SEG-M-NEG-001",
+      "meter_id": "M-NEG",
+      "status": "negative_drop_quarantined",
+      "start_utc": "2024-11-08T15:00:00Z",
+      "end_utc": "2024-11-08T17:00:00Z",
+      "duration_seconds": "7200",
+      "raw_difference_wh": -50,
+      "issues": [
+        {
+          "code": "unvouchered_negative_drop",
+          "message": "cumulative Wh decreased; isolated instead of treating the decrease as negative consumption",
+          "start_value_wh": 200,
+          "end_value_wh": 150,
+          "raw_difference_wh": -50
+        }
+      ],
+      "evidence": {
+        "meter_id": "M-NEG",
+        "start_anchors": [
+          {
+            "ref_id": "NEG-R1",
+            "kind": "valid_reading",
+            "declared_ts": "2024-11-08T10:00:00-05:00",
+            "utc": "2024-11-08T15:00:00Z",
+            "value_wh": 200,
+            "evidence": {
+              "reading_id": "NEG-R1",
+              "path": "readings[8]",
+              "raw": {
+                "reading_id": "NEG-R1",
+                "meter_id": "M-NEG",
+                "ts": "2024-11-08T10:00:00-05:00",
+                "value_wh": 200
+              }
+            }
+          }
+        ],
+        "end_anchors": [
+          {
+            "ref_id": "NEG-R2",
+            "kind": "valid_reading",
+            "declared_ts": "2024-11-08T12:00:00-05:00",
+            "utc": "2024-11-08T17:00:00Z",
+            "value_wh": 150,
+            "evidence": {
+              "reading_id": "NEG-R2",
+              "path": "readings[9]",
+              "raw": {
+                "reading_id": "NEG-R2",
+                "meter_id": "M-NEG",
+                "ts": "2024-11-08T12:00:00-05:00",
+                "value_wh": 150
+              }
+            }
+          }
+        ],
+        "start_utc": "2024-11-08T15:00:00Z",
+        "end_utc": "2024-11-08T17:00:00Z",
+        "duration_seconds": "7200",
+        "interval_note": "Intervals are [start_utc, end_utc); the end instant belongs to the next interval.",
+        "warnings": []
+      },
+      "candidate_control_keys": [
+        {
+          "scope_id": "S-NEG",
+          "billing_day": "2024-11-08",
+          "rate_id": "R-NEG"
+        }
+      ],
+      "diagnostic_intervals": [
+        {
+          "start_utc": "2024-11-08T15:00:00Z",
+          "end_utc": "2024-11-08T17:00:00Z",
+          "duration_seconds": "7200",
+          "binding_ids": [
+            "B-NEG"
+          ],
+          "scope_id": "S-NEG",
+          "billing_day": "2024-11-08",
+          "tariff_versions": [
+            "TV-NEG-1"
+          ],
+          "rate_ids": [
+            "R-NEG"
+          ]
+        }
+      ]
+    },
+    {
+      "segment_id": "SEG-M-PEND-NEW-001",
+      "meter_id": "M-PEND-NEW",
+      "status": "pending_verification",
+      "start_utc": "2024-11-07T17:00:00Z",
+      "end_utc": "2024-11-07T19:00:00Z",
+      "duration_seconds": "7200",
+      "raw_difference_wh": null,
+      "issues": [
+        {
+          "code": "missing_exchange_endpoint",
+          "message": "cross-exchange interval cannot be certified because old-end/new-start Wh is missing",
+          "refs": [
+            "V-PEND-INCOMPLETE:new_start"
+          ],
+          "voucher_ids": [
+            "V-PEND-INCOMPLETE"
+          ]
+        }
+      ],
+      "evidence": {
+        "meter_id": "M-PEND-NEW",
+        "start_anchors": [
+          {
+            "ref_id": "V-PEND-INCOMPLETE:new_start",
+            "kind": "missing_exchange_endpoint",
+            "declared_ts": "2024-11-07T12:00:00-05:00",
+            "utc": "2024-11-07T17:00:00Z",
+            "value_wh": null,
+            "evidence": {
+              "voucher_id": "V-PEND-INCOMPLETE",
+              "side": "new_start",
+              "exchange_raw": {
+                "voucher_id": "V-PEND-INCOMPLETE",
+                "exchange_at": "2024-11-07T12:00:00-05:00",
+                "old_meter_id": "M-PEND-OLD",
+                "new_meter_id": "M-PEND-NEW"
+              },
+              "missing": true
+            }
+          }
+        ],
+        "end_anchors": [
+          {
+            "ref_id": "PEND-NEW-R1",
+            "kind": "valid_reading",
+            "declared_ts": "2024-11-07T14:00:00-05:00",
+            "utc": "2024-11-07T19:00:00Z",
+            "value_wh": 70,
+            "evidence": {
+              "reading_id": "PEND-NEW-R1",
+              "path": "readings[7]",
+              "raw": {
+                "reading_id": "PEND-NEW-R1",
+                "meter_id": "M-PEND-NEW",
+                "ts": "2024-11-07T14:00:00-05:00",
+                "value_wh": 70
+              }
+            }
+          }
+        ],
+        "start_utc": "2024-11-07T17:00:00Z",
+        "end_utc": "2024-11-07T19:00:00Z",
+        "duration_seconds": "7200",
+        "interval_note": "Intervals are [start_utc, end_utc); the end instant belongs to the next interval.",
+        "warnings": []
+      },
+      "candidate_control_keys": [
+        {
+          "scope_id": "S-PEND",
+          "billing_day": "2024-11-07",
+          "rate_id": "R-PEND"
+        }
+      ],
+      "diagnostic_intervals": [
+        {
+          "start_utc": "2024-11-07T17:00:00Z",
+          "end_utc": "2024-11-07T19:00:00Z",
+          "duration_seconds": "7200",
+          "binding_ids": [
+            "B-PN"
+          ],
+          "scope_id": "S-PEND",
+          "billing_day": "2024-11-07",
+          "tariff_versions": [
+            "TV-PEND-1"
+          ],
+          "rate_ids": [
+            "R-PEND"
+          ]
+        }
+      ]
+    },
+    {
+      "segment_id": "SEG-M-PEND-OLD-001",
+      "meter_id": "M-PEND-OLD",
+      "status": "pending_verification",
+      "start_utc": "2024-11-07T15:00:00Z",
+      "end_utc": "2024-11-07T17:00:00Z",
+      "duration_seconds": "7200",
+      "raw_difference_wh": null,
+      "issues": [
+        {
+          "code": "missing_exchange_endpoint",
+          "message": "cross-exchange interval cannot be certified because old-end/new-start Wh is missing",
+          "refs": [
+            "V-PEND-INCOMPLETE:old_end"
+          ],
+          "voucher_ids": [
+            "V-PEND-INCOMPLETE"
+          ]
+        }
+      ],
+      "evidence": {
+        "meter_id": "M-PEND-OLD",
+        "start_anchors": [
+          {
+            "ref_id": "PEND-OLD-R1",
+            "kind": "valid_reading",
+            "declared_ts": "2024-11-07T10:00:00-05:00",
+            "utc": "2024-11-07T15:00:00Z",
+            "value_wh": 500,
+            "evidence": {
+              "reading_id": "PEND-OLD-R1",
+              "path": "readings[6]",
+              "raw": {
+                "reading_id": "PEND-OLD-R1",
+                "meter_id": "M-PEND-OLD",
+                "ts": "2024-11-07T10:00:00-05:00",
+                "value_wh": 500
+              }
+            }
+          }
+        ],
+        "end_anchors": [
+          {
+            "ref_id": "V-PEND-INCOMPLETE:old_end",
+            "kind": "missing_exchange_endpoint",
+            "declared_ts": "2024-11-07T12:00:00-05:00",
+            "utc": "2024-11-07T17:00:00Z",
+            "value_wh": null,
+            "evidence": {
+              "voucher_id": "V-PEND-INCOMPLETE",
+              "side": "old_end",
+              "exchange_raw": {
+                "voucher_id": "V-PEND-INCOMPLETE",
+                "exchange_at": "2024-11-07T12:00:00-05:00",
+                "old_meter_id": "M-PEND-OLD",
+                "new_meter_id": "M-PEND-NEW"
+              },
+              "missing": true
+            }
+          }
+        ],
+        "start_utc": "2024-11-07T15:00:00Z",
+        "end_utc": "2024-11-07T17:00:00Z",
+        "duration_seconds": "7200",
+        "interval_note": "Intervals are [start_utc, end_utc); the end instant belongs to the next interval.",
+        "warnings": []
+      },
+      "candidate_control_keys": [
+        {
+          "scope_id": "S-PEND",
+          "billing_day": "2024-11-07",
+          "rate_id": "R-PEND"
+        }
+      ],
+      "diagnostic_intervals": [
+        {
+          "start_utc": "2024-11-07T15:00:00Z",
+          "end_utc": "2024-11-07T17:00:00Z",
+          "duration_seconds": "7200",
+          "binding_ids": [
+            "B-PO"
+          ],
+          "scope_id": "S-PEND",
+          "billing_day": "2024-11-07",
+          "tariff_versions": [
+            "TV-PEND-1"
+          ],
+          "rate_ids": [
+            "R-PEND"
+          ]
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "half_open_interval_rule": "Intervals are [start_utc, end_utc); the end instant belongs to the next interval.",
+    "uniform_distribution_rule": "q_atom = delta_wh * overlap_UTC_seconds / segment_UTC_seconds",
+    "rounding_rule": "each atom is allocated floor(q) or ceil(q); integer q is fixed",
+    "money_rule": "amount = allocated_wh * input_unit_price; Fraction arithmetic, no extra rounding",
+    "segment_checks": [
+      {
+        "segment_id": "SEG-M-AMB-001",
+        "meter_id": "M-AMB",
+        "segment_status": "intersection_ambiguous",
+        "target_delta_wh": 4,
+        "atom_ids": [],
+        "rational_sum_wh": "0",
+        "floor_sum_wh": 0,
+        "allocated_sum_wh": null,
+        "rational_partition_ok": false,
+        "floor_ceil_bounds_ok_for_known_values": true,
+        "sum_matches_original_difference": false,
+        "status": "not_applicable_quarantined"
+      },
+      {
+        "segment_id": "SEG-M-DST-001",
+        "meter_id": "M-DST",
+        "segment_status": "valid",
+        "target_delta_wh": 2,
+        "atom_ids": [
+          "A00001"
+        ],
+        "rational_sum_wh": "2",
+        "floor_sum_wh": 2,
+        "allocated_sum_wh": 2,
+        "rational_partition_ok": true,
+        "floor_ceil_bounds_ok_for_known_values": true,
+        "sum_matches_original_difference": true,
+        "status": "verified"
+      },
+      {
+        "segment_id": "SEG-M-EX-NEW-001",
+        "meter_id": "M-EX-NEW",
+        "segment_status": "valid",
+        "target_delta_wh": 90,
+        "atom_ids": [
+          "A00002"
+        ],
+        "rational_sum_wh": "90",
+        "floor_sum_wh": 90,
+        "allocated_sum_wh": 90,
+        "rational_partition_ok": true,
+        "floor_ceil_bounds_ok_for_known_values": true,
+        "sum_matches_original_difference": true,
+        "status": "verified"
+      },
+      {
+        "segment_id": "SEG-M-EX-OLD-001",
+        "meter_id": "M-EX-OLD",
+        "segment_status": "valid",
+        "target_delta_wh": 200,
+        "atom_ids": [
+          "A00003"
+        ],
+        "rational_sum_wh": "200",
+        "floor_sum_wh": 200,
+        "allocated_sum_wh": 200,
+        "rational_partition_ok": true,
+        "floor_ceil_bounds_ok_for_known_values": true,
+        "sum_matches_original_difference": true,
+        "status": "verified"
+      },
+      {
+        "segment_id": "SEG-M-H1-001",
+        "meter_id": "M-H1",
+        "segment_status": "valid",
+        "target_delta_wh": 1,
+        "atom_ids": [
+          "A00004",
+          "A00005"
+        ],
+        "rational_sum_wh": "1",
+        "floor_sum_wh": 0,
+        "allocated_sum_wh": null,
+        "rational_partition_ok": true,
+        "floor_ceil_bounds_ok_for_known_values": true,
+        "sum_matches_original_difference": false,
+        "status": "not_settled"
+      },
+      {
+        "segment_id": "SEG-M-H2-001",
+        "meter_id": "M-H2",
+        "segment_status": "valid",
+        "target_delta_wh": 1,
+        "atom_ids": [
+          "A00006",
+          "A00007"
+        ],
+        "rational_sum_wh": "1",
+        "floor_sum_wh": 0,
+        "allocated_sum_wh": null,
+        "rational_partition_ok": true,
+        "floor_ceil_bounds_ok_for_known_values": true,
+        "sum_matches_original_difference": false,
+        "status": "not_settled"
+      },
+      {
+        "segment_id": "SEG-M-H3-001",
+        "meter_id": "M-H3",
+        "segment_status": "valid",
+        "target_delta_wh": 1,
+        "atom_ids": [
+          "A00008",
+          "A00009"
+        ],
+        "rational_sum_wh": "1",
+        "floor_sum_wh": 0,
+        "allocated_sum_wh": null,
+        "rational_partition_ok": true,
+        "floor_ceil_bounds_ok_for_known_values": true,
+        "sum_matches_original_difference": false,
+        "status": "not_settled"
+      },
+      {
+        "segment_id": "SEG-M-HQ1-001",
+        "meter_id": "M-HQ1",
+        "segment_status": "valid",
+        "target_delta_wh": 1,
+        "atom_ids": [
+          "A00010",
+          "A00011"
+        ],
+        "rational_sum_wh": "1",
+        "floor_sum_wh": 0,
+        "allocated_sum_wh": null,
+        "rational_partition_ok": true,
+        "floor_ceil_bounds_ok_for_known_values": true,
+        "sum_matches_original_difference": false,
+        "status": "not_settled"
+      },
+      {
+        "segment_id": "SEG-M-HQ2-001",
+        "meter_id": "M-HQ2",
+        "segment_status": "valid",
+        "target_delta_wh": 1,
+        "atom_ids": [
+          "A00012",
+          "A00013"
+        ],
+        "rational_sum_wh": "1",
+        "floor_sum_wh": 0,
+        "allocated_sum_wh": null,
+        "rational_partition_ok": true,
+        "floor_ceil_bounds_ok_for_known_values": true,
+        "sum_matches_original_difference": false,
+        "status": "not_settled"
+      },
+      {
+        "segment_id": "SEG-M-HQ3-001",
+        "meter_id": "M-HQ3",
+        "segment_status": "valid",
+        "target_delta_wh": 1,
+        "atom_ids": [
+          "A00014",
+          "A00015",
+          "A00016"
+        ],
+        "rational_sum_wh": "1",
+        "floor_sum_wh": 0,
+        "allocated_sum_wh": null,
+        "rational_partition_ok": true,
+        "floor_ceil_bounds_ok_for_known_values": true,
+        "sum_matches_original_difference": false,
+        "status": "not_settled"
+      },
+      {
+        "segment_id": "SEG-M-NEG-001",
+        "meter_id": "M-NEG",
+        "segment_status": "negative_drop_quarantined",
+        "target_delta_wh": -50,
+        "atom_ids": [],
+        "rational_sum_wh": "0",
+        "floor_sum_wh": 0,
+        "allocated_sum_wh": null,
+        "rational_partition_ok": false,
+        "floor_ceil_bounds_ok_for_known_values": true,
+        "sum_matches_original_difference": false,
+        "status": "not_applicable_quarantined"
+      },
+      {
+        "segment_id": "SEG-M-PEND-NEW-001",
+        "meter_id": "M-PEND-NEW",
+        "segment_status": "pending_verification",
+        "target_delta_wh": null,
+        "atom_ids": [],
+        "rational_sum_wh": "0",
+        "floor_sum_wh": 0,
+        "allocated_sum_wh": null,
+        "rational_partition_ok": false,
+        "floor_ceil_bounds_ok_for_known_values": true,
+        "sum_matches_original_difference": false,
+        "status": "not_applicable_quarantined"
+      },
+      {
+        "segment_id": "SEG-M-PEND-OLD-001",
+        "meter_id": "M-PEND-OLD",
+        "segment_status": "pending_verification",
+        "target_delta_wh": null,
+        "atom_ids": [],
+        "rational_sum_wh": "0",
+        "floor_sum_wh": 0,
+        "allocated_sum_wh": null,
+        "rational_partition_ok": false,
+        "floor_ceil_bounds_ok_for_known_values": true,
+        "sum_matches_original_difference": false,
+        "status": "not_applicable_quarantined"
+      },
+      {
+        "segment_id": "SEG-M-XDAY-001",
+        "meter_id": "M-XDAY",
+        "segment_status": "valid",
+        "target_delta_wh": 3,
+        "atom_ids": [
+          "A00017",
+          "A00018"
+        ],
+        "rational_sum_wh": "3",
+        "floor_sum_wh": 2,
+        "allocated_sum_wh": 3,
+        "rational_partition_ok": true,
+        "floor_ceil_bounds_ok_for_known_values": true,
+        "sum_matches_original_difference": true,
+        "status": "verified"
+      }
+    ],
+    "control_checks": [
+      {
+        "control": {
+          "scope_id": "S-AMB1",
+          "billing_day": "2024-11-09",
+          "rate_id": "R-AMB"
+        },
+        "component_id": "R001",
+        "component_status": "blocked_evidence",
+        "control_id": "C-AMB1",
+        "target_total_wh": 2,
+        "atom_ids": [],
+        "rational_sum_wh": "0",
+        "floor_sum_wh": 0,
+        "ceil_sum_wh": 0,
+        "minimum_integer_wh": 0,
+        "maximum_integer_wh": 0,
+        "allocated_sum_wh": 0,
+        "sum_matches_control": false,
+        "status": "component_blocked_evidence",
+        "issues": []
+      },
+      {
+        "control": {
+          "scope_id": "S-AMB2",
+          "billing_day": "2024-11-09",
+          "rate_id": "R-AMB"
+        },
+        "component_id": "R001",
+        "component_status": "blocked_evidence",
+        "control_id": "C-AMB2",
+        "target_total_wh": 2,
+        "atom_ids": [],
+        "rational_sum_wh": "0",
+        "floor_sum_wh": 0,
+        "ceil_sum_wh": 0,
+        "minimum_integer_wh": 0,
+        "maximum_integer_wh": 0,
+        "allocated_sum_wh": 0,
+        "sum_matches_control": false,
+        "status": "component_blocked_evidence",
+        "issues": []
+      },
+      {
+        "control": {
+          "scope_id": "S-DST",
+          "billing_day": "2024-11-03",
+          "rate_id": "R-DST"
+        },
+        "component_id": "R002",
+        "component_status": "settled",
+        "control_id": "C-DST",
+        "target_total_wh": 2,
+        "atom_ids": [
+          "A00001"
+        ],
+        "rational_sum_wh": "2",
+        "floor_sum_wh": 2,
+        "ceil_sum_wh": 2,
+        "minimum_integer_wh": 2,
+        "maximum_integer_wh": 2,
+        "allocated_sum_wh": 2,
+        "sum_matches_control": true,
+        "status": "verified",
+        "issues": []
+      },
+      {
+        "control": {
+          "scope_id": "S-EX",
+          "billing_day": "2024-11-06",
+          "rate_id": "R-EX"
+        },
+        "component_id": "R003",
+        "component_status": "settled",
+        "control_id": "C-EX",
+        "target_total_wh": 290,
+        "atom_ids": [
+          "A00002",
+          "A00003"
+        ],
+        "rational_sum_wh": "290",
+        "floor_sum_wh": 290,
+        "ceil_sum_wh": 290,
+        "minimum_integer_wh": 290,
+        "maximum_integer_wh": 290,
+        "allocated_sum_wh": 290,
+        "sum_matches_control": true,
+        "status": "verified",
+        "issues": []
+      },
+      {
+        "control": {
+          "scope_id": "S-HALL",
+          "billing_day": "2024-01-01",
+          "rate_id": "R-H"
+        },
+        "component_id": "R004",
+        "component_status": "infeasible",
+        "control_id": "C-H1",
+        "target_total_wh": 1,
+        "atom_ids": [
+          "A00004",
+          "A00006"
+        ],
+        "rational_sum_wh": "1",
+        "floor_sum_wh": 0,
+        "ceil_sum_wh": 2,
+        "minimum_integer_wh": 0,
+        "maximum_integer_wh": 2,
+        "allocated_sum_wh": null,
+        "sum_matches_control": false,
+        "status": "component_infeasible",
+        "issues": []
+      },
+      {
+        "control": {
+          "scope_id": "S-HALL",
+          "billing_day": "2024-01-02",
+          "rate_id": "R-H"
+        },
+        "component_id": "R004",
+        "component_status": "infeasible",
+        "control_id": "C-H2",
+        "target_total_wh": 0,
+        "atom_ids": [
+          "A00005",
+          "A00007"
+        ],
+        "rational_sum_wh": "1",
+        "floor_sum_wh": 0,
+        "ceil_sum_wh": 2,
+        "minimum_integer_wh": 0,
+        "maximum_integer_wh": 2,
+        "allocated_sum_wh": null,
+        "sum_matches_control": false,
+        "status": "component_infeasible",
+        "issues": []
+      },
+      {
+        "control": {
+          "scope_id": "S-HALL",
+          "billing_day": "2024-01-03",
+          "rate_id": "R-H"
+        },
+        "component_id": "R005",
+        "component_status": "infeasible",
+        "control_id": "C-H3",
+        "target_total_wh": 1,
+        "atom_ids": [
+          "A00008"
+        ],
+        "rational_sum_wh": "1/2",
+        "floor_sum_wh": 0,
+        "ceil_sum_wh": 1,
+        "minimum_integer_wh": 0,
+        "maximum_integer_wh": 1,
+        "allocated_sum_wh": null,
+        "sum_matches_control": false,
+        "status": "component_infeasible",
+        "issues": []
+      },
+      {
+        "control": {
+          "scope_id": "S-HALL",
+          "billing_day": "2024-01-04",
+          "rate_id": "R-H"
+        },
+        "component_id": "R005",
+        "component_status": "infeasible",
+        "control_id": "C-H4",
+        "target_total_wh": 1,
+        "atom_ids": [
+          "A00009"
+        ],
+        "rational_sum_wh": "1/2",
+        "floor_sum_wh": 0,
+        "ceil_sum_wh": 1,
+        "minimum_integer_wh": 0,
+        "maximum_integer_wh": 1,
+        "allocated_sum_wh": null,
+        "sum_matches_control": false,
+        "status": "component_infeasible",
+        "issues": []
+      },
+      {
+        "control": {
+          "scope_id": "S-HQ",
+          "billing_day": "2024-02-01",
+          "rate_id": "R-H"
+        },
+        "component_id": "R006",
+        "component_status": "infeasible",
+        "control_id": "C-HQ-H",
+        "target_total_wh": 1,
+        "atom_ids": [
+          "A00010",
+          "A00011",
+          "A00012",
+          "A00013",
+          "A00014"
+        ],
+        "rational_sum_wh": "7/3",
+        "floor_sum_wh": 0,
+        "ceil_sum_wh": 5,
+        "minimum_integer_wh": 0,
+        "maximum_integer_wh": 5,
+        "allocated_sum_wh": null,
+        "sum_matches_control": false,
+        "status": "component_infeasible",
+        "issues": []
+      },
+      {
+        "control": {
+          "scope_id": "S-HQ",
+          "billing_day": "2024-02-01",
+          "rate_id": "R-L"
+        },
+        "component_id": "R006",
+        "component_status": "infeasible",
+        "control_id": "C-HQ-L",
+        "target_total_wh": 1,
+        "atom_ids": [
+          "A00016"
+        ],
+        "rational_sum_wh": "1/3",
+        "floor_sum_wh": 0,
+        "ceil_sum_wh": 1,
+        "minimum_integer_wh": 0,
+        "maximum_integer_wh": 1,
+        "allocated_sum_wh": null,
+        "sum_matches_control": false,
+        "status": "component_infeasible",
+        "issues": []
+      },
+      {
+        "control": {
+          "scope_id": "S-HQ",
+          "billing_day": "2024-02-01",
+          "rate_id": "R-M"
+        },
+        "component_id": "R006",
+        "component_status": "infeasible",
+        "control_id": "C-HQ-M",
+        "target_total_wh": 1,
+        "atom_ids": [
+          "A00015"
+        ],
+        "rational_sum_wh": "1/3",
+        "floor_sum_wh": 0,
+        "ceil_sum_wh": 1,
+        "minimum_integer_wh": 0,
+        "maximum_integer_wh": 1,
+        "allocated_sum_wh": null,
+        "sum_matches_control": false,
+        "status": "component_infeasible",
+        "issues": []
+      },
+      {
+        "control": {
+          "scope_id": "S-NEG",
+          "billing_day": "2024-11-08",
+          "rate_id": "R-NEG"
+        },
+        "component_id": "R007",
+        "component_status": "blocked_evidence",
+        "control_id": "C-NEG",
+        "target_total_wh": 0,
+        "atom_ids": [],
+        "rational_sum_wh": "0",
+        "floor_sum_wh": 0,
+        "ceil_sum_wh": 0,
+        "minimum_integer_wh": 0,
+        "maximum_integer_wh": 0,
+        "allocated_sum_wh": 0,
+        "sum_matches_control": true,
+        "status": "component_blocked_evidence",
+        "issues": []
+      },
+      {
+        "control": {
+          "scope_id": "S-PEND",
+          "billing_day": "2024-11-07",
+          "rate_id": "R-PEND"
+        },
+        "component_id": "R008",
+        "component_status": "blocked_evidence",
+        "control_id": "C-PEND",
+        "target_total_wh": 120,
+        "atom_ids": [],
+        "rational_sum_wh": "0",
+        "floor_sum_wh": 0,
+        "ceil_sum_wh": 0,
+        "minimum_integer_wh": 0,
+        "maximum_integer_wh": 0,
+        "allocated_sum_wh": 0,
+        "sum_matches_control": false,
+        "status": "component_blocked_evidence",
+        "issues": []
+      },
+      {
+        "control": {
+          "scope_id": "S-XDAY",
+          "billing_day": "2024-11-04",
+          "rate_id": "R-XD"
+        },
+        "component_id": "R009",
+        "component_status": "settled",
+        "control_id": "C-XD-04",
+        "target_total_wh": 2,
+        "atom_ids": [
+          "A00017"
+        ],
+        "rational_sum_wh": "3/2",
+        "floor_sum_wh": 1,
+        "ceil_sum_wh": 2,
+        "minimum_integer_wh": 1,
+        "maximum_integer_wh": 2,
+        "allocated_sum_wh": 2,
+        "sum_matches_control": true,
+        "status": "verified",
+        "issues": []
+      },
+      {
+        "control": {
+          "scope_id": "S-XDAY",
+          "billing_day": "2024-11-05",
+          "rate_id": "R-XD"
+        },
+        "component_id": "R009",
+        "component_status": "settled",
+        "control_id": "C-XD-05",
+        "target_total_wh": 1,
+        "atom_ids": [
+          "A00018"
+        ],
+        "rational_sum_wh": "3/2",
+        "floor_sum_wh": 1,
+        "ceil_sum_wh": 2,
+        "minimum_integer_wh": 1,
+        "maximum_integer_wh": 2,
+        "allocated_sum_wh": 1,
+        "sum_matches_control": true,
+        "status": "verified",
+        "issues": []
+      }
+    ],
+    "all_segment_sums_ok": false,
+    "all_control_sums_ok": false,
+    "global_issues": []
+  },
+  "segment_to_component_hint": {
+    "SEG-M-AMB-001": "R001",
+    "SEG-M-DST-001": "R002",
+    "SEG-M-EX-OLD-001": "R003",
+    "SEG-M-EX-NEW-001": "R003",
+    "SEG-M-H1-001": "R004",
+    "SEG-M-H2-001": "R004",
+    "SEG-M-H3-001": "R005",
+    "SEG-M-HQ3-001": "R006",
+    "SEG-M-HQ1-001": "R006",
+    "SEG-M-HQ2-001": "R006",
+    "SEG-M-NEG-001": "R007",
+    "SEG-M-PEND-OLD-001": "R008",
+    "SEG-M-PEND-NEW-001": "R008",
+    "SEG-M-XDAY-001": "R009"
+  }
+}

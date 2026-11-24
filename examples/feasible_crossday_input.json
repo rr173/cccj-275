@@ -1,0 +1,22 @@
+{
+  "rule_version": "unit-test-rules",
+  "billing_calendar": {
+    "calendar_id": "utc",
+    "timezone": "UTC",
+    "billing_day_start": "00:00"
+  },
+  "readings": [
+    {"reading_id": "r1", "meter_id": "M1", "ts": "2025-01-01T23:30:00+00:00", "value_wh": 0},
+    {"reading_id": "r2", "meter_id": "M1", "ts": "2025-01-02T00:30:00+00:00", "value_wh": 3}
+  ],
+  "bindings": [
+    {"binding_id": "b1", "meter_id": "M1", "scope_id": "S1", "valid_from": "2025-01-01T00:00:00+00:00", "valid_to": "2025-01-03T00:00:00+00:00"}
+  ],
+  "tariff_versions": [
+    {"tariff_version": "tv1", "scope_id": "S1", "rate_id": "flat", "unit_price": "1/3", "effective_from": "2025-01-01T00:00:00+00:00", "effective_to": "2025-01-03T00:00:00+00:00"}
+  ],
+  "control_totals": [
+    {"scope_id": "S1", "billing_day": "2025-01-01", "rate_id": "flat", "total_wh": 2},
+    {"scope_id": "S1", "billing_day": "2025-01-02", "rate_id": "flat", "total_wh": 1}
+  ]
+}
