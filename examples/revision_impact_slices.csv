@@ -1,0 +1,16 @@
+scope_id,comparability,billing_day,rate_id,cell_change,baseline_target_wh,candidate_target_wh,baseline_allocated_wh,candidate_allocated_wh,delta_allocated_wh,baseline_amount_fraction,candidate_amount_fraction,delta_amount_fraction,baseline_settlement_state,candidate_settlement_state,reason
+S-AMB1,not_comparable,2024-11-09,R-AMB,not_comparable,,,,,,,,,not_settled,not_settled,baseline_not_settleable_or_evidence_insufficient;candidate_not_settleable_or_evidence_insufficient
+S-AMB2,not_comparable,2024-11-09,R-AMB,not_comparable,,,,,,,,,not_settled,not_settled,baseline_not_settleable_or_evidence_insufficient;candidate_not_settleable_or_evidence_insufficient
+S-DST,comparable,2024-11-03,R-DST,unchanged,2,2,2,2,0,4/3,4/3,0,settled_verified,settled_verified,
+S-EX,comparable,2024-11-06,R-EX,unchanged,290,290,290,290,0,290,290,0,settled_verified,settled_verified,
+S-HALL,not_comparable,2024-01-01,R-H,not_comparable,,,,,,,,,not_settled,not_settled,baseline_not_settleable_or_evidence_insufficient;candidate_not_settleable_or_evidence_insufficient
+S-HALL,not_comparable,2024-01-02,R-H,not_comparable,,,,,,,,,not_settled,not_settled,baseline_not_settleable_or_evidence_insufficient;candidate_not_settleable_or_evidence_insufficient
+S-HALL,not_comparable,2024-01-03,R-H,not_comparable,,,,,,,,,not_settled,not_settled,baseline_not_settleable_or_evidence_insufficient;candidate_not_settleable_or_evidence_insufficient
+S-HALL,not_comparable,2024-01-04,R-H,not_comparable,,,,,,,,,not_settled,not_settled,baseline_not_settleable_or_evidence_insufficient;candidate_not_settleable_or_evidence_insufficient
+S-HQ,not_comparable,2024-02-01,R-H,not_comparable,,,,,,,,,not_settled,not_settled,baseline_not_settleable_or_evidence_insufficient;candidate_not_settleable_or_evidence_insufficient
+S-HQ,not_comparable,2024-02-01,R-L,not_comparable,,,,,,,,,not_settled,not_settled,baseline_not_settleable_or_evidence_insufficient;candidate_not_settleable_or_evidence_insufficient
+S-HQ,not_comparable,2024-02-01,R-M,not_comparable,,,,,,,,,not_settled,not_settled,baseline_not_settleable_or_evidence_insufficient;candidate_not_settleable_or_evidence_insufficient
+S-NEG,not_comparable,2024-11-08,R-NEG,not_comparable,,,,,,,,,not_settled,not_settled,baseline_not_settleable_or_evidence_insufficient;candidate_not_settleable_or_evidence_insufficient
+S-PEND,not_comparable,2024-11-07,R-PEND,not_comparable,,,,,,,,,not_settled,not_settled,baseline_not_settleable_or_evidence_insufficient;candidate_not_settleable_or_evidence_insufficient
+S-XDAY,comparable,2024-11-04,R-XD,changed,2,2,2,2,0,5/2,7/2,1,settled_verified,settled_verified,
+S-XDAY,comparable,2024-11-05,R-XD,changed,1,2,1,2,1,5/4,7/2,9/4,settled_verified,settled_verified,

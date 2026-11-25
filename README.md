@@ -4,10 +4,11 @@
 
 > 运行环境的 `/workspace` 初始没有业务输入文件。因此这里同时给出了明确的 JSON 输入契约、可运行样例和手算例。拿到真实输入后，只要转换成该 JSON 契约即可直接运行。
 
-项目包含两个相互独立的能力，共用同一份输入 JSON：
+项目包含三个相互独立的能力，共用同一份输入 JSON：
 
 1. **结算**（`settle()`，第 3、4 节）：把累计读数差按实际 UTC 时长分到计费日×费率控制格，求整数分配。
 2. **计划采集窗口核对**（`reconcile_windows()`，第 5 节）：按计划窗口核对实到读数，输出实到 / 待核 / 漏采，并单列未匹配读数。核对是只读分析，**不改变任何结算结果**。
+3. **修订影响分析**（`revision_impact()`，第 6 节）：输入基线结算数据与候选修订数据，输出按结算范围、计费日、费率和原始读数段归纳的新增 / 消失 / 数值变化 / 不受影响结果，并保留双方规则、绑定、读数和结算依据。只对两侧都能完整结算的范围报告影响；其余标为 `not_comparable` 并保留冲突证据。
 
 ## 1. 运行
 
@@ -55,6 +56,21 @@ python3 -I /workspace/meter_allocator.py \
 ```
 
 核对相关参数：`--reconcile`、`--reconcile-output`、`--reconcile-csv`、`--reconcile-only`。三者中任一出现即触发核对；`--reconcile-only` 只做核对，不计算结算。
+
+### 修订影响分析
+
+```bash
+python3 -I /workspace/meter_allocator.py \
+  --baseline  /workspace/examples/park_input.json \
+  --candidate /workspace/examples/revision_candidate_input.json \
+  --impact-output /workspace/examples/revision_impact_result.json \
+  --impact-csv    /workspace/examples/revision_impact_slices.csv
+```
+
+- `--impact` 触发影响分析；`--impact-output` / `--impact-csv` 亦触发。必须同时给出 `--baseline` 与 `--candidate`。
+- 不影响分析模式下 `--input` / `--csv` 的使用；影响分析不能与 `--reconcile*` 组合。
+- 正常输出退出码 `0`；任一输入契约错误输出 `fatal_input_error` 并以退出码 `2` 结束。
+- 不影响既有结算与核对输出：不传影响参数时，`park_result.json` 等既有结果逐字段不变。
 
 测试：
 
@@ -219,7 +235,61 @@ c_j=C_j-\sum_{e\in j}\lfloor q_e\rfloor
 
 示例见 `examples/reconciliation_input.json`、`examples/reconciliation_result.json`、`examples/reconciliation_slices.csv`。
 
-## 6. 手算例
+## 6. 修订影响分析
+
+发布新读数、计量点绑定或费率修订之前，用同一份结算引擎分别对基线输入与候选修订输入求结算，再按语义身份比较两份结果。分析只读，**不改变**任一输入自身的结算结果，也不改变计划窗口核对。
+
+### 6.1 身份与比较键
+
+- 控制格身份：`(scope_id, billing_day, rate_id)`；
+- 原始读数段身份：`(meter_id, start_utc, end_utc)`（半开区间，UTC）。
+
+不使用生成的 `atom_id`、`component_id`、JSON 数组下标或 `readings[i]` 路径作为身份。**因此输入记录顺序变化不会制造 `added`/`removed`/`changed`**。读数时间戳本身改变则会产生旧段 `removed` 与新段 `added`，这是真实修订而非顺序噪声。
+
+每个控制格和读数段都给出四类结果之一：
+
+| `change` | 含义 |
+|---|---|
+| `added` | 候选修订中存在、基线中不存在 |
+| `removed` | 基线中存在、候选修订中不存在 |
+| `changed` | 两侧都存在，但目标控制量、分配电量、金额、单价、费率版本、绑定、计费日历或读数证据不同 |
+| `unchanged` | 两侧都存在且上述比较字段完全一致（不受影响） |
+
+数值差 `delta_allocated_wh` / `delta_amount_fraction` **只对双方都存在且都已复核的控制格或读数段计算**。单侧新增/消失单独列在 `added_values_not_delta` / `removed_values_not_delta`，不进入差值，也**绝不把缺失侧当作 0**。
+
+### 6.2 可比较性（`not_comparable`）
+
+只有当某 `scope_id` 在两侧都能形成**完整、已复核**的结算（每个控制格 `verified`、每个相关读数段 `verified`）时，才报告该范围的影响。任一侧出现以下情况即标为 `not_comparable`，保留双方冲突证据，且该范围**不输出任何数值差**：
+
+- 未结算的连通范围（`infeasible` / `blocked_evidence` / `input_error`）；
+- 阻断的读数段（无绑定、绑定歧义、费率歧义/缺失、换表端点缺失、负下降）；
+- 控制总量缺失或重复；
+- 该范围存在无法归入任何 `scope_id` 的全局问题（如换表凭证引用不存在的读数）。
+
+若某侧完全**没有**该范围的数据、另一侧完整可结算，则记为整范围 `added` / `removed`（`baseline_presence` / `candidate_presence` 为 `absent` / `complete`）。若一侧有读数段而另一侧无法解析其归属，则视为**另一侧证据不足**并标为 `not_comparable`，不静默配对。
+
+### 6.3 输出
+
+`revision_impact_result.json` 顶层：
+
+- `overall_status`：`all_scopes_comparable` / `partial_comparability` / `not_comparable` / `no_scopes` / `fatal_input_error`（含中文 `overall_status_label`）；
+- `has_changes`、`rule_version`（含两侧 `input_rule_version` 与 `input_rule_version_changed`）、`input_audit`（两侧路径与 SHA-256）；
+- `rules`：可比较性规则、身份规则、比较类别与结算依据的原文；
+- `summary`：范围总数、可比/不可比数、控制格与读数段的四类合计、可比范围内的分配电量/金额差、`not_comparable_scopes`、未归属读数段数；
+- `scopes[]`：每个 `scope_id` 的 `comparability`、两侧 `presence`、按 `(billing_day, rate_id)` 的 `control_cells` 与 `reading_segments`（各含 `baseline` / `candidate` 证据视图、`changes`、`delta_*`），以及按计费日归并的 `by_billing_day` 和 `rollup`；
+- `evidence_catalog`：未结算连通范围的完整证据按 `range_id` 仅存一份，`scope.conflicts[].range_id` 可解析；
+- `unscoped_segments`：无法归入任何范围而单列的读数段。
+
+每个控制格与读数段都保留对应侧的可审计证据：
+
+- 控制格：`target_wh`、`allocated_wh`、`amount_fraction`、`unit_prices`、`tariff_versions`、`binding_ids`、`control_ids`、原始控制行 `raw_control_rows`、`settlement_basis.atoms`（含 `formula_wh`、`floor/ceil`、`binding_raw`、`tariff_basis`、`calendar_id`、时区）；
+- 读数段：`raw_difference_wh`、`segment_check`、`reading_evidence`（起止锚点与原始读数）、`binding_evidence`、`tariff_evidence`、`candidate_controls`。
+
+`revision_impact_slices.csv` 是每个可比控制格（不可比范围为每个候选格）一行的扁平摘要。
+
+示例见 `examples/revision_candidate_input.json`、`examples/revision_impact_result.json`、`examples/revision_impact_slices.csv`：候选中 `S-XDAY` 的费率单价与 `XD-R2` 读数变化使 2024-11-05 控制格 `1 -> 2 Wh`、金额 `+9/4`；`S-DST`、`S-EX` 不受影响；`S-AMB*`、`S-HALL`、`S-HQ`、`S-NEG`、`S-PEND` 因无法结算或证据不足标为 `not_comparable`。
+
+## 7. 手算例
 
 见 [`docs/hand_examples.md`](docs/hand_examples.md)。样例输出中的关键范围：
 
@@ -230,4 +300,4 @@ c_j=C_j-\sum_{e\in j}\lfloor q_e\rfloor
 - `R008`：缺换表端点，隔离待核；
 - `R006`：每个局部都能舍入，但整体无分配的广义 Hall 冲突。
 
-计划窗口核对的逐窗口手算过程见同一文档第 5 节。
+计划窗口核对的逐窗口手算过程见同一文档第 5 节。修订影响分析的可比较性判定见第 6 节与 `tests/test_revision_impact.py`。

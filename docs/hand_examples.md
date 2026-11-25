@@ -261,3 +261,33 @@ components[component_id=R006].evidence.hall_witness
 ### 5.8 汇总
 
 样例 15 个窗口：实到 5、待核 4、漏采 6；有效读数 12 条，被选中 5 条，未匹配 7 条；排除读数 1 条、排除绑定 1 条。总状态 `attention_required`，因为存在待核或漏采窗口。结算完全不受影响：同一输入不传 `--reconcile` 时输出与既有结算结果一致。
+
+## 6. 修订影响分析
+
+样例见 `examples/park_input.json`（基线）、`examples/revision_candidate_input.json`（候选）、`examples/revision_impact_result.json` 与 `examples/revision_impact_slices.csv`。
+
+### 6.1 身份只看语义，不看顺序
+
+比较键是控制格 `(scope, billing_day, rate_id)` 与读数段 `(meter_id, start_utc, end_utc)`，不是数组下标、`atom_id` 或 `A00017` 之类的生成编号。把任一输入的 `readings`、`bindings`、`tariff_versions`、`control_totals` 全表打乱后再比较，结果逐字段相同（仅原始文件 SHA-256 不同）。
+
+### 6.2 跨计日范围的真实变化
+
+候选修订把 `S-XDAY` 的单价 `5/4 -> 7/4`、费率版本 `TV-XD-1 -> TV-XD-2`，并把 `XD-R2` 从 `1003 -> 1004 Wh`，控制总量改为 `2 / 2 Wh`。两侧都能结算，故 `S-XDAY` 可比：
+
+- `2024-11-04 × R-XD`：分配仍是 2 Wh，金额 `5/2 -> 7/2`，差 `1`；
+- `2024-11-05 × R-XD`：分配 `1 -> 2 Wh`，金额 `5/4 -> 7/2`，差 `9/4`；
+- 原始读数段 `M-XDAY [04:30Z, 05:30Z)`：原始差 `3 -> 4 Wh`，分配差 `+1 Wh`、`+13/4`；
+- 范围合计分配差 `+1 Wh`、金额差 `+13/4`（`1 + 9/4`；逐日明细见 `by_billing_day`）。
+
+`S-DST`、`S-EX` 未改动，四类统计中计为 `unchanged`，差为 `0`，而不是被省略。
+
+### 6.3 失败范围不当作零
+
+`S-AMB1`/`S-AMB2`（绑定歧义）、`S-HALL`/`S-HQ`（整数分配不可行）、`S-NEG`（无凭证负下降）、`S-PEND`（缺换表端点）在基线即无法完整结算，因此全部标 `not_comparable`：
+
+- 不产生任何数值差（`delta_*` 为 `null`）；
+- `conflicts.baseline` / `conflicts.candidate` 保留两侧冲突证据（阻断段、原始读数、绑定、费率、控制行）；
+- 未结算连通范围的完整证据按 `range_id` 在 `evidence_catalog` 中只存一份，`scope.conflicts[].range_id` 引用之；
+- 若一侧删除了某范围唯一的绑定，该范围在另一侧会由 `complete` 变为 `incomplete`，读数段进入 `unscoped_segments`，而不会被静默配到旧段上。
+
+总状态因此是 `partial_comparability`：3 个范围可比、6 个不可比。

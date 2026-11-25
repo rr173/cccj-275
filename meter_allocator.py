@@ -2629,6 +2629,1464 @@ def write_reconciliation_csv(report: dict, path: Path) -> None:
                 "issue_codes": ";".join(x["code"] for x in w["issues"]),
             })
 
+# ---------------------------------------------------------------------------
+# Revision impact analysis (baseline settlement vs. candidate revision)
+# ---------------------------------------------------------------------------
+#
+# This section is additive: it never changes settlement or planned-window
+# reconciliation results.  Both inputs are run through the unchanged
+# settlement pipeline and compared using semantic identities only:
+#
+#   * control cell     -> (scope_id, billing_day, rate_id)
+#   * reading segment  -> (meter_id, start_utc, end_utc)
+#
+# Generated atom ids, component ids and JSON list positions are never used as
+# identity, so re-ordering input records cannot create an added/removed/changed
+# result on its own.
+#
+# A scope is comparable only when each side either has a complete, verified
+# settlement for every control cell and every reading segment touching that
+# scope, or has no data for that scope at all while the other side is complete.
+# A blocked segment, an unsettled connected range, a missing/duplicate control
+# total, an ambiguous binding/tariff, or a scope-less parser issue makes the
+# scope not_comparable: both sides' conflict evidence is retained and no
+# numeric delta is emitted.  Failure is never coerced to zero and is never
+# silently paired with the other side.
+
+REVISION_IMPACT_RULE_VERSION = "revision-impact-1.0.0"
+
+REVISION_IMPACT_STATUS_LABELS = {
+    "all_scopes_comparable": "全部结算范围可比",
+    "partial_comparability": "部分结算范围可比",
+    "not_comparable": "没有可比较的结算范围",
+    "no_scopes": "没有结算范围",
+    "fatal_input_error": "输入契约错误",
+}
+
+REVISION_COMPARABILITY_RULE = (
+    "影响只在同一结算范围(scope_id)的两份输入都能形成完整、已复核的结算时报告；"
+    "任一输入在该范围存在未结算的连通范围、阻断的读数段、缺失/重复控制总量、"
+    "绑定或费率歧义时，该范围标为 not_comparable，保留双方冲突证据且不输出数值差。"
+    "失败绝不当作零值，也不与其他侧数据静默配对。某侧完全不存在该范围的数据时，"
+    "仅在另一侧完整可结算的前提下记为 added/removed；absence 不等同于 0。"
+    "比较键为 (scope_id,billing_day,rate_id) 与 (meter_id,start_utc,end_utc)，"
+    "不使用输入下标或生成的 atom_id，因此输入记录顺序变化不会制造变化。"
+)
+
+REVISION_IDENTITY_RULE = (
+    "控制格身份=(scope_id,billing_day,rate_id)；读数段身份=(meter_id,start_utc,end_utc)。"
+    "读数数值、凭证、绑定、费率版本、控制总量和分配结果只作为可比较的数值/证据，"
+    "不参与身份键。读数时间戳改变会产生旧段 removed 与新段 added，这是真实变化而非顺序变化。"
+)
+
+REVISION_SETTLEMENT_BASIS_RULES = {
+    "half_open_interval_rule": HALF_OPEN_NOTE,
+    "uniform_distribution_rule": "q_atom = delta_wh * overlap_UTC_seconds / segment_UTC_seconds",
+    "rounding_rule": "each atom is allocated floor(q) or ceil(q); integer q is fixed",
+    "money_rule": "amount = allocated_wh * input_unit_price; Fraction arithmetic, no extra rounding",
+    "change_categories": {
+        "added": "候选修订中出现、基线中不存在的控制格或读数段",
+        "removed": "基线中存在、候选修订中不存在的控制格或读数段",
+        "changed": "两份输入都存在但数值、目标控制量、费率版本或绑定证据不同",
+        "unchanged": "两份输入都存在且上述比较字段完全一致（不受影响）",
+    },
+}
+
+
+def _rev_segment_identity(seg: Segment) -> dict:
+    return {
+        "meter_id": seg.meter_id,
+        "start_utc": abs_to_utc_iso(seg.start),
+        "end_utc": abs_to_utc_iso(seg.end),
+    }
+
+
+def _rev_segment_key(identity: dict) -> tuple[str, str, str]:
+    return (identity["meter_id"], identity["start_utc"], identity["end_utc"])
+
+
+def _rev_key_tuple(obj: dict) -> tuple[str, str, str]:
+    return (obj["scope_id"], obj["billing_day"], obj["rate_id"])
+
+
+def _rev_key_obj(key: tuple[str, str, str]) -> dict:
+    return key_object(key)
+
+
+def _rev_control_key_from_raw(c: dict) -> tuple[str, str, str]:
+    return (
+        str(c.get("scope_id") or c.get("settlement_scope_id") or ""),
+        str(c.get("billing_day") or c.get("day") or ""),
+        str(c.get("rate_id") or c.get("rate") or ""),
+    )
+
+
+def _rev_control_raw_rows(root: dict) -> dict[tuple[str, str, str], list[dict]]:
+    raw = root.get("control_totals", root.get("controls", []))
+    rows: dict[tuple[str, str, str], list[dict]] = defaultdict(list)
+    if isinstance(raw, list):
+        for i, c in enumerate(raw):
+            if isinstance(c, dict):
+                rows[_rev_control_key_from_raw(c)].append({"path": f"control_totals[{i}]", "raw": c})
+    return rows
+
+
+def _rev_segment_binding_evidence(
+    seg: Segment, bindings: list[Binding]
+) -> list[dict]:
+    """Overlapping binding rows for a segment, used when no atom carries one."""
+    out = []
+    for b in sorted(bindings, key=lambda x: (x.binding_id, x.start, x.end)):
+        if b.meter_id != seg.meter_id:
+            continue
+        if b.end <= seg.start or b.start >= seg.end:
+            continue
+        out.append({
+            "binding_id": b.binding_id,
+            "meter_id": b.meter_id,
+            "point_id": b.point_id,
+            "scope_id": b.scope_id,
+            "valid_from_utc": abs_to_utc_iso(b.start),
+            "valid_to_utc": abs_to_utc_iso(b.end),
+            "raw": b.raw,
+        })
+    return out
+
+
+def _rev_scope_ids_for_voucher(
+    err: dict, root: dict, bindings: list[Binding]
+) -> set[str]:
+    vid = err.get("voucher_id")
+    if not vid:
+        return set()
+    raw_vouchers = root.get("exchange_vouchers", root.get("meter_exchanges", []))
+    if not isinstance(raw_vouchers, list):
+        return set()
+    scopes: set[str] = set()
+    for v in raw_vouchers:
+        if not isinstance(v, dict):
+            continue
+        if str(v.get("voucher_id") or v.get("id") or "") != str(vid):
+            continue
+        meters = {str(v.get("old_meter_id", "")), str(v.get("new_meter_id", ""))} - {""}
+        for b in bindings:
+            if b.meter_id in meters:
+                scopes.add(b.scope_id)
+    return scopes
+
+
+def _rev_money(amount: Optional[Fraction]) -> Optional[str]:
+    return frac_str(amount) if amount is not None else None
+
+
+def _rev_slice_atom_view(sl: dict) -> dict:
+    b = sl.get("basis") or {}
+    # A complete but non-duplicated audit view: the volatile boilerplate strings
+    # are emitted once per report, while every per-atom decision keeps its rule,
+    # binding, tariff, calendar and exact rational evidence.
+    return {
+        "atom_id": sl["atom_id"],
+        "component_id": sl["component_id"],
+        "control": sl["control"],
+        "segment_id": b.get("segment_id"),
+        "rule_version": b.get("rule_version"),
+        "allocation_convention": b.get("allocation_convention"),
+        "half_open": b.get("half_open"),
+        "interval_start_utc": sl["interval_start_utc"],
+        "interval_end_utc": sl["interval_end_utc"],
+        "duration_seconds": sl["duration_seconds"],
+        "formula_wh": b.get("formula_wh"),
+        "rational_wh": sl["rational_wh"],
+        "floor_wh": sl["floor_wh"],
+        "ceil_wh": sl["ceil_wh"],
+        "allocated_wh": sl["allocated_wh"],
+        "rounding": sl["rounding"],
+        "unit_price": sl["unit_price"],
+        "amount_fraction": sl["amount_fraction"],
+        "binding_id": b.get("binding_id"),
+        "point_id": b.get("point_id"),
+        "scope_id": b.get("scope_id"),
+        "calendar_id": b.get("calendar_id"),
+        "timezone": b.get("timezone"),
+        "billing_day_start_utc": b.get("billing_day_start_utc"),
+        "billing_day_end_utc": b.get("billing_day_end_utc"),
+        "tariff_version": b.get("tariff_version"),
+        "rate_id": b.get("rate_id"),
+        "binding_raw": b.get("binding_raw"),
+        "tariff_basis": b.get("tariff_basis"),
+    }
+
+
+def _rev_build_side(
+    label: str,
+    root: dict,
+    input_path: Optional[Path],
+    raw_bytes: Optional[bytes],
+) -> dict:
+    """Run the untouched settlement pipeline and index its evidence semantically."""
+    report = settle(root, input_path, raw_bytes)
+    segments, _excluded, _reading_issues = build_segments(root)
+    bindings = load_bindings(root)
+    controls = load_controls(root)
+
+    seg_identity_by_id = {s.segment_id: _rev_segment_identity(s) for s in segments}
+    slices_by_seg: dict[str, list[dict]] = defaultdict(list)
+    slices_by_key: dict[tuple[str, str, str], list[dict]] = defaultdict(list)
+    for sl in report["slices"]:
+        slices_by_seg[sl["segment_id"]].append(sl)
+        slices_by_key[_rev_key_tuple(sl["control"])].append(sl)
+
+    control_check_by_key = {
+        _rev_key_tuple(x["control"]): x for x in report["verification"]["control_checks"]
+    }
+    segment_check_by_id = {
+        x["segment_id"]: x for x in report["verification"]["segment_checks"]
+    }
+    quarantined_by_id = {
+        q["segment_id"]: q for q in report["quarantined_segments"]
+    }
+    raw_control_rows = _rev_control_raw_rows(root)
+
+    # ---- control cells -------------------------------------------------
+    cells: dict[tuple[str, str, str], dict] = {}
+    for key in sorted(set(controls) | set(slices_by_key)):
+        sl = sorted(slices_by_key.get(key, []), key=lambda s: s["atom_id"])
+        check = control_check_by_key.get(key, {})
+        ctl = controls.get(key)
+        vals = [s["allocated_wh"] for s in sl]
+        resolved = all(v is not None for v in vals)
+        amounts = [s["amount_fraction"] for s in sl]
+        amount: Optional[Fraction] = None
+        if resolved and all(a is not None for a in amounts):
+            amount = sum((Fraction(a) for a in amounts), Fraction(0))
+        seg_alloc: dict[tuple[str, str, str], Optional[int]] = {}
+        for s in sl:
+            ident = seg_identity_by_id.get(s["segment_id"])
+            if ident is not None:
+                seg_alloc[_rev_segment_key(ident)] = s["allocated_wh"]
+        cells[key] = {
+            "control": _rev_key_obj(key),
+            "present": bool(sl) or ctl is not None,
+            "target_wh": ctl.total_wh if ctl is not None else None,
+            "control_ids": ([ctl.control_id] if ctl is not None and ctl.control_id is not None else []),
+            "allocated_wh": sum(vals) if resolved else None,
+            "amount": amount,
+            "unit_prices": sorted({s["unit_price"] for s in sl if s["unit_price"] is not None}),
+            "tariff_versions": sorted({
+                s["basis"].get("tariff_version") for s in sl
+                if s["basis"].get("tariff_version") is not None
+            }),
+            "binding_ids": sorted({
+                s["basis"].get("binding_id") for s in sl
+                if s["basis"].get("binding_id") is not None
+            }),
+            "status": check.get("status"),
+            "component_id": check.get("component_id"),
+            "component_status": check.get("component_status"),
+            "verified": check.get("status") == "verified",
+            "issues": list(check.get("issues", [])) + (list(ctl.issues) if ctl is not None else []),
+            "raw_control_rows": raw_control_rows.get(key, []),
+            "segments": seg_alloc,
+            "slices": [_rev_slice_atom_view(s) for s in sl],
+        }
+
+    # ---- reading segments ---------------------------------------------
+    records: dict[tuple[str, str, str], dict] = {}
+    for seg in segments:
+        ident = _rev_segment_identity(seg)
+        skey = _rev_segment_key(ident)
+        sl = sorted(slices_by_seg.get(seg.segment_id, []), key=lambda s: s["atom_id"])
+        check = segment_check_by_id.get(seg.segment_id, {})
+        q = quarantined_by_id.get(seg.segment_id)
+
+        scope_alloc: dict[str, dict] = {}
+        for s in sl:
+            scope = s["control"]["scope_id"]
+            entry = scope_alloc.setdefault(scope, {
+                "allocated_wh": 0,
+                "amount": Fraction(0),
+                "per_control": {},
+                "complete": True,
+            })
+            control_key = _rev_key_tuple(s["control"])
+            if s["allocated_wh"] is None:
+                entry["complete"] = False
+            else:
+                entry["allocated_wh"] += s["allocated_wh"]
+                entry["per_control"][control_key] = entry["per_control"].get(control_key, 0) + s["allocated_wh"]
+            if s["amount_fraction"] is None:
+                entry["complete"] = False
+            else:
+                entry["amount"] += Fraction(s["amount_fraction"])
+
+        scope_ids = set(scope_alloc)
+        if q is not None:
+            for obj in q.get("candidate_control_keys", []):
+                scope_ids.add(obj["scope_id"])
+        binding_evidence = _rev_segment_binding_evidence(seg, bindings)
+        if not scope_ids:
+            scope_ids.update(b["scope_id"] for b in binding_evidence)
+
+        complete = check.get("status") == "verified" and seg.status == "valid"
+        if not complete:
+            for entry in scope_alloc.values():
+                entry["complete"] = False
+
+        atom_views = [_rev_slice_atom_view(s) for s in sl]
+        binding_evidence_by_id: dict[str, dict] = {}
+        tariff_evidence: dict[tuple[str, str, str], dict] = {}
+        for s in sl:
+            basis = s["basis"]
+            bid = basis.get("binding_id")
+            if bid is not None and bid not in binding_evidence_by_id:
+                binding_evidence_by_id[bid] = {
+                    "binding_id": bid,
+                    "point_id": basis.get("point_id"),
+                    "scope_id": basis.get("scope_id"),
+                    "calendar_id": basis.get("calendar_id"),
+                    "raw": basis.get("binding_raw"),
+                }
+            tb = basis.get("tariff_basis") or {}
+            tkey = (str(basis.get("tariff_version")), str(basis.get("rate_id")), str(basis.get("unit_price")))
+            if tkey not in tariff_evidence:
+                tariff_evidence[tkey] = {
+                    "tariff_version": basis.get("tariff_version"),
+                    "rate_id": basis.get("rate_id"),
+                    "unit_price": basis.get("unit_price"),
+                    "basis": tb,
+                }
+        if not binding_evidence_by_id:
+            binding_evidence_by_id = {
+                b["binding_id"]: {
+                    "binding_id": b["binding_id"],
+                    "point_id": b["point_id"],
+                    "scope_id": b["scope_id"],
+                    "calendar_id": None,
+                    "raw": b["raw"],
+                }
+                for b in binding_evidence
+            }
+
+        records[skey] = {
+            "identity": ident,
+            "segment_ids": [seg.segment_id],
+            "status": seg.status,
+            "delta_wh": seg.delta_wh,
+            "duration_seconds": frac_str(seg.end - seg.start),
+            "complete": complete,
+            "scope_ids": sorted(scope_ids),
+            "scope_allocations": scope_alloc,
+            "segment_check": check,
+            "issues": list(seg.issues) + list((q or {}).get("issues", [])),
+            "candidate_controls": list((q or {}).get("candidate_control_keys", [])),
+            "diagnostic_intervals": list((q or {}).get("diagnostic_intervals", [])),
+            "reading_evidence": {
+                "start_anchors": seg.evidence.get("start_anchors", []),
+                "end_anchors": seg.evidence.get("end_anchors", []),
+                "warnings": seg.evidence.get("warnings", []),
+                "interval_note": seg.evidence.get("interval_note"),
+            },
+            "binding_evidence": sorted(binding_evidence_by_id.values(), key=lambda x: str(x["binding_id"])),
+            "tariff_evidence": sorted(tariff_evidence.values(), key=lambda x: (str(x["tariff_version"]), str(x["rate_id"]))),
+            "atoms": atom_views,
+        }
+
+    # ---- scope-level conflict evidence ---------------------------------
+    # A connected range can touch several scopes.  The full range evidence is
+    # stored once in the side's catalog and each scope keeps a reference, so a
+    # multi-scope conflict is not duplicated into every scope payload.
+    range_evidence: dict[str, dict] = {}
+    scope_conflicts: dict[str, list[dict]] = defaultdict(list)
+    for comp in report["components"]:
+        if comp["status"] == "settled":
+            continue
+        range_id = f"{label}:range:{comp['component_id']}"
+        range_evidence[range_id] = {
+            "range_id": range_id,
+            "side": label,
+            "component_id": comp["component_id"],
+            "component_status": comp["status"],
+            "segment_ids": sorted(comp["segment_ids"]),
+            "control_keys": comp["control_keys"],
+            "issues": [_rev_stable_issue(i) for i in comp["issues"]],
+            "evidence": comp["evidence"],
+        }
+        for obj in comp["control_keys"]:
+            scope_conflicts[obj["scope_id"]].append({
+                "code": "connected_range_not_settled",
+                "range_id": range_id,
+                "component_id": comp["component_id"],
+                "component_status": comp["status"],
+                "control_keys": comp["control_keys"],
+                "segment_ids": sorted(comp["segment_ids"]),
+                "issues": [_rev_stable_issue(i) for i in comp["issues"]],
+            })
+
+    global_conflicts: list[dict] = []
+    for err in report["verification"]["global_issues"]:
+        scopes = set()
+        if err.get("scope_id"):
+            scopes.add(str(err["scope_id"]))
+        scopes |= _rev_scope_ids_for_voucher(err, root, bindings)
+        if scopes:
+            for scope in sorted(scopes):
+                scope_conflicts[scope].append({
+                    "code": "input_issue_for_scope",
+                    "issue": err,
+                })
+        else:
+            global_conflicts.append({
+                "code": "scope_not_identifiable",
+                "issue": err,
+                "message": (
+                    "this issue cannot be attributed to one settlement scope because the input "
+                    "does not name it; every reported scope on this side is treated as not_comparable"
+                ),
+            })
+
+    return {
+        "label": label,
+        "path": str(input_path) if input_path else None,
+        "sha256": hashlib.sha256(raw_bytes).hexdigest() if raw_bytes else None,
+        "root_rule_version": root.get("rule_version", "unspecified"),
+        "report": report,
+        "overall_settlement_status": report["overall_status"],
+        "segments": records,
+        "controls": cells,
+        "scope_conflicts": dict(scope_conflicts),
+        "range_evidence": range_evidence,
+        "global_conflicts": global_conflicts,
+        "scope_ids": sorted(
+            {k[0] for k in cells}
+            | {scope for rec in records.values() for scope in rec["scope_ids"]}
+            | set(scope_conflicts)
+        ),
+        "unscoped_segments": sorted(
+            (
+                {
+                    "side": label,
+                    "identity": rec["identity"],
+                    "segment_ids": rec["segment_ids"],
+                    "segment_status": rec["status"],
+                    "raw_difference_wh": rec["delta_wh"],
+                    "issues": [_rev_stable_issue(i) for i in rec["issues"]],
+                    "reading_evidence": _rev_reading_evidence_view(rec["reading_evidence"]),
+                    "binding_evidence": [
+                        {**b, "raw": _rev_strip_path(b.get("raw"))} for b in rec["binding_evidence"]
+                    ],
+                    "candidate_controls": rec["candidate_controls"],
+                    "reason": "no_resolvable_scope",
+                    "message": "segment cannot be attributed to any settlement scope; retained without pairing",
+                }
+                for rec in records.values()
+                if not rec["scope_ids"]
+            ),
+            key=lambda x: _rev_segment_key(x["identity"]),
+        ),
+    }
+
+
+def _rev_strip_path(raw: Any) -> Any:
+    """Drop positional ``path`` from retained raw evidence (order is not identity)."""
+    if isinstance(raw, dict):
+        return {k: _rev_strip_path(v) for k, v in raw.items() if k != "path"}
+    if isinstance(raw, list):
+        return [_rev_strip_path(v) for v in raw]
+    return raw
+
+
+def _rev_reading_evidence_view(ev: dict) -> dict:
+    return {
+        "start_anchors": [_rev_anchor_evidence(a) for a in ev.get("start_anchors", [])],
+        "end_anchors": [_rev_anchor_evidence(a) for a in ev.get("end_anchors", [])],
+        "warnings": [_rev_stable_issue(w) for w in ev.get("warnings", [])],
+        "interval_note": ev.get("interval_note"),
+    }
+
+
+def _rev_stable_conflict(item: dict) -> dict:
+    out = dict(item)
+    if isinstance(out.get("issues"), list):
+        out["issues"] = [_rev_stable_issue(i) for i in out["issues"]]
+    if isinstance(out.get("issue"), dict):
+        out["issue"] = _rev_stable_issue(out["issue"])
+    if isinstance(out.get("reading_evidence"), dict):
+        out["reading_evidence"] = _rev_reading_evidence_view(out["reading_evidence"])
+    if isinstance(out.get("other_side_issues"), list):
+        out["other_side_issues"] = [_rev_stable_issue(i) for i in out["other_side_issues"]]
+    if isinstance(out.get("other_side_reading_evidence"), dict):
+        out["other_side_reading_evidence"] = _rev_reading_evidence_view(out["other_side_reading_evidence"])
+    return out
+
+
+def _rev_side_scope_state(side: dict, scope: str) -> dict:
+    """Presence and conflicts of one scope on one side."""
+    cells = [c for k, c in side["controls"].items() if k[0] == scope]
+    segs = [r for r in side["segments"].values() if scope in r["scope_ids"]]
+    extra = side["scope_conflicts"].get(scope, [])
+    globals_here = side["global_conflicts"]
+
+    if not cells and not segs and not extra and not globals_here:
+        return {"presence": "absent", "conflicts": []}
+
+    conflicts: list[dict] = []
+    for cell in sorted(cells, key=lambda c: _rev_key_tuple(c["control"])):
+        if not cell["verified"]:
+            conflicts.append({
+                "code": "control_cell_not_settled",
+                "control": cell["control"],
+                "status": cell["status"],
+                "component_status": cell["component_status"],
+                "target_wh": cell["target_wh"],
+                "allocated_wh": cell["allocated_wh"],
+                "issues": [_rev_stable_issue(i) for i in cell["issues"]],
+                "raw_control_rows": [{"raw": r["raw"]} for r in cell["raw_control_rows"]],
+            })
+    for rec in sorted(segs, key=lambda r: _rev_segment_key(r["identity"])):
+        if not rec["complete"]:
+            conflicts.append({
+                "code": "reading_segment_not_settled",
+                "segment": rec["identity"],
+                "segment_status": rec["status"],
+                "segment_check": rec["segment_check"],
+                "raw_difference_wh": rec["delta_wh"],
+                "issues": [_rev_stable_issue(i) for i in rec["issues"]],
+                "candidate_controls": rec["candidate_controls"],
+                "reading_evidence": _rev_reading_evidence_view(rec["reading_evidence"]),
+                "binding_evidence": [
+                    {**b, "raw": _rev_strip_path(b.get("raw"))} for b in rec["binding_evidence"]
+                ],
+            })
+    for item in extra:
+        conflicts.append(_rev_stable_conflict(item))
+    for g in globals_here:
+        conflicts.append(_rev_stable_conflict(g))
+
+    return {
+        "presence": "incomplete" if conflicts else "complete",
+        "conflicts": conflicts,
+    }
+
+
+def _rev_norm_instant(value: Any) -> Any:
+    if isinstance(value, str):
+        try:
+            return abs_to_utc_iso(parse_instant(value).sec)
+        except InputError:
+            return value
+    return value
+
+
+def _rev_binding_signature(raw: Optional[dict]) -> Optional[str]:
+    if not isinstance(raw, dict):
+        return None
+    payload = {
+        "meter_id": raw.get("meter_id"),
+        "scope_id": raw.get("scope_id", raw.get("settlement_scope_id", raw.get("account_id"))),
+        "point_id": raw.get("point_id"),
+        "valid_from_utc": _rev_norm_instant(
+            raw.get("valid_from", raw.get("start", raw.get("from")))
+        ),
+        "valid_to_utc": _rev_norm_instant(
+            raw.get("valid_to", raw.get("end", raw.get("to")))
+        ),
+        "calendar_id_explicit": raw.get("calendar_id"),
+        "valid": raw.get("valid", True),
+    }
+    return json.dumps(payload, sort_keys=True, ensure_ascii=False)
+
+
+def _rev_tariff_signature(atom: dict) -> Optional[str]:
+    tb = atom.get("tariff_basis")
+    if not isinstance(tb, dict):
+        return None
+    payload = {k: tb.get(k) for k in sorted(tb) if k != "tariff_version"}
+    payload["_rate_id"] = atom.get("rate_id")
+    payload["_unit_price"] = atom.get("unit_price")
+    return json.dumps(payload, sort_keys=True, ensure_ascii=False, default=str)
+
+
+def _rev_calendar_signature(atom: dict) -> Optional[str]:
+    payload = {
+        "timezone": atom.get("timezone"),
+        "billing_day_start_utc": atom.get("billing_day_start_utc"),
+        "billing_day_end_utc": atom.get("billing_day_end_utc"),
+    }
+    return json.dumps(payload, sort_keys=True, ensure_ascii=False)
+
+
+def _rev_reading_signature(rec: dict) -> str:
+    anchors = []
+    for a in rec["reading_evidence"].get("start_anchors", []):
+        anchors.append(("start", a.get("kind"), a.get("utc"), a.get("value_wh")))
+    for a in rec["reading_evidence"].get("end_anchors", []):
+        anchors.append(("end", a.get("kind"), a.get("utc"), a.get("value_wh")))
+    return json.dumps(sorted(anchors), sort_keys=True, ensure_ascii=False)
+
+
+def _rev_stable_issue(issue: dict) -> dict:
+    """Copy an issue with list fields sorted so input order cannot reorder evidence."""
+    out = dict(issue)
+    for key in ("binding_ids", "control_ids", "refs", "voucher_ids", "reading_refs", "segment_ids"):
+        val = out.get(key)
+        if isinstance(val, list):
+            out[key] = sorted(val, key=str)
+    if isinstance(out.get("actives_tariff_versions"), list):
+        out["actives_tariff_versions"] = sorted(
+            out["actives_tariff_versions"], key=lambda x: json.dumps(x, sort_keys=True)
+        )
+    if isinstance(out.get("anchors"), list):
+        out["anchors"] = sorted(out["anchors"], key=lambda x: json.dumps(x, sort_keys=True))
+    return out
+
+
+def _rev_anchor_evidence(anchor: dict) -> dict:
+    """Retain anchor evidence without positional input indices.
+
+    ``evidence.path`` is derived from JSON list position.  Reporting it would
+    make a pure re-ordering look like a difference, so the stable reading id
+    and the raw record are kept instead.
+    """
+    ev = dict(anchor.get("evidence") or {})
+    ev.pop("path", None)
+    if isinstance(ev.get("raw"), dict):
+        ev["raw"] = _rev_strip_path(ev["raw"])
+    return {
+        "ref_id": anchor.get("ref_id"),
+        "kind": anchor.get("kind"),
+        "declared_ts": anchor.get("declared_ts"),
+        "utc": anchor.get("utc"),
+        "value_wh": anchor.get("value_wh"),
+        "evidence": ev,
+    }
+
+
+def _rev_cell_view(cell: dict) -> dict:
+    if not cell["present"]:
+        state = "absent"
+    elif cell["verified"]:
+        state = "settled_verified"
+    else:
+        state = "not_settled"
+    slices = cell["slices"]
+    return {
+        "control": cell["control"],
+        "settlement_state": state,
+        "target_wh": cell["target_wh"],
+        "allocated_wh": cell["allocated_wh"],
+        "amount_fraction": _rev_money(cell["amount"]),
+        "unit_prices": cell["unit_prices"],
+        "tariff_versions": cell["tariff_versions"],
+        "binding_ids": cell["binding_ids"],
+        "control_ids": cell["control_ids"],
+        "component": {
+            "component_id": cell["component_id"],
+            "component_status": cell["component_status"],
+        },
+        "control_check_status": cell["status"],
+        "verified": cell["verified"],
+        "issues": [_rev_stable_issue(i) for i in cell["issues"]],
+        "raw_control_rows": [
+            {"raw": r["raw"]} for r in cell["raw_control_rows"]
+        ],
+        "segment_refs": [
+            {"meter_id": k[0], "start_utc": k[1], "end_utc": k[2]}
+            for k in sorted(cell["segments"])
+        ],
+        "settlement_basis": {"atoms": slices},
+        "signatures": {
+            "unit_prices": cell["unit_prices"],
+            "tariff": sorted({
+                _rev_tariff_signature(s) for s in slices
+                if _rev_tariff_signature(s) is not None
+            }),
+            "binding": sorted({
+                _rev_binding_signature(s.get("binding_raw")) for s in slices
+                if _rev_binding_signature(s.get("binding_raw")) is not None
+            }),
+            "calendar": sorted({
+                _rev_calendar_signature(s) for s in slices
+                if _rev_calendar_signature(s) is not None
+            }),
+        },
+    }
+
+
+def _rev_segment_view(rec: dict, scope: str) -> dict:
+    atoms = [a for a in rec["atoms"] if a["control"]["scope_id"] == scope]
+    per_control: dict[tuple[str, str, str], dict] = {}
+    complete = rec["complete"]
+    for atom in atoms:
+        key = _rev_key_tuple(atom["control"])
+        e = per_control.setdefault(key, {
+            "control": atom["control"],
+            "allocated_wh": 0,
+            "amount": Fraction(0),
+            "complete": True,
+            "atom_ids": [],
+        })
+        e["atom_ids"].append(atom["atom_id"])
+        if atom["allocated_wh"] is None or atom["amount_fraction"] is None:
+            e["complete"] = False
+        else:
+            e["allocated_wh"] += atom["allocated_wh"]
+            e["amount"] += Fraction(atom["amount_fraction"])
+    if not complete or any(not e["complete"] for e in per_control.values()):
+        total_wh = None
+        total_amount = None
+    else:
+        total_wh = sum(e["allocated_wh"] for e in per_control.values())
+        total_amount = sum((e["amount"] for e in per_control.values()), Fraction(0))
+    state = "settled_verified" if rec["complete"] else "not_settled"
+    return {
+        "segment": rec["identity"],
+        "settlement_state": state,
+        "segment_status": rec["status"],
+        "raw_difference_wh": rec["delta_wh"],
+        "duration_seconds": rec["duration_seconds"],
+        "allocated_wh_in_scope": total_wh,
+        "amount_fraction_in_scope": _rev_money(total_amount),
+        "per_control": [
+            {
+                "control": e["control"],
+                "allocated_wh": e["allocated_wh"] if e["complete"] else None,
+                "amount_fraction": _rev_money(e["amount"]) if e["complete"] else None,
+                "atom_ids": sorted(e["atom_ids"]),
+            }
+            for _, e in sorted(per_control.items())
+        ],
+        "segment_check": rec["segment_check"],
+        "issues": [_rev_stable_issue(i) for i in rec["issues"]],
+        "candidate_controls": rec["candidate_controls"],
+        "diagnostic_intervals": rec["diagnostic_intervals"],
+        "reading_evidence": _rev_reading_evidence_view(rec["reading_evidence"]),
+        "binding_evidence": rec["binding_evidence"],
+        "tariff_evidence": rec["tariff_evidence"],
+        "settlement_basis": {"atoms": atoms},
+        "signatures": {
+            "reading": _rev_reading_signature(rec),
+            "binding": sorted({_rev_binding_signature(b.get("raw")) for b in rec["binding_evidence"]
+                               if _rev_binding_signature(b.get("raw")) is not None}),
+            "tariff": sorted({_rev_tariff_signature(a) for a in atoms
+                              if _rev_tariff_signature(a) is not None}),
+            "calendar": sorted({_rev_calendar_signature(a) for a in atoms
+                                if _rev_calendar_signature(a) is not None}),
+        },
+    }
+
+
+def _rev_change(field: str, kind: str, baseline: Any, candidate: Any) -> dict:
+    return {
+        "field": field,
+        "kind": kind,
+        "baseline": baseline,
+        "candidate": candidate,
+    }
+
+
+def _rev_amount_delta(base_value: Any, cand_value: Any) -> Optional[str]:
+    if base_value is None or cand_value is None:
+        return None
+    return frac_str(Fraction(cand_value) - Fraction(base_value))
+
+
+def _rev_compare_cell(base_view: dict, cand_view: dict) -> tuple[str, list[dict], Optional[int], Optional[str]]:
+    changes: list[dict] = []
+    b_sig = base_view["signatures"]
+    c_sig = cand_view["signatures"]
+    for field in ("target_wh", "allocated_wh"):
+        b, c = base_view[field], cand_view[field]
+        if b != c:
+            entry = _rev_change(field, "numeric", b, c)
+            if isinstance(b, int) and isinstance(c, int):
+                entry["delta"] = c - b
+            changes.append(entry)
+    if base_view["amount_fraction"] != cand_view["amount_fraction"]:
+        entry = _rev_change(
+            "amount_fraction", "numeric",
+            base_view["amount_fraction"], cand_view["amount_fraction"],
+        )
+        entry["delta"] = _rev_amount_delta(
+            base_view["amount_fraction"], cand_view["amount_fraction"]
+        )
+        changes.append(entry)
+    for field, label in (
+        ("unit_prices", "unit_price"),
+        ("tariff", "tariff"),
+        ("binding", "binding"),
+        ("calendar", "calendar"),
+    ):
+        if b_sig[field] != c_sig[field]:
+            changes.append(_rev_change(label, "evidence", b_sig[field], c_sig[field]))
+    delta_wh = None
+    if isinstance(base_view["allocated_wh"], int) and isinstance(cand_view["allocated_wh"], int):
+        delta_wh = cand_view["allocated_wh"] - base_view["allocated_wh"]
+    delta_amount = _rev_amount_delta(
+        base_view["amount_fraction"], cand_view["amount_fraction"]
+    )
+    return ("changed" if changes else "unchanged"), changes, delta_wh, delta_amount
+
+
+def _rev_compare_segment(base_view: dict, cand_view: dict) -> tuple[str, list[dict], Optional[int], Optional[str]]:
+    changes: list[dict] = []
+    if base_view["raw_difference_wh"] != cand_view["raw_difference_wh"]:
+        b, c = base_view["raw_difference_wh"], cand_view["raw_difference_wh"]
+        entry = _rev_change("raw_difference_wh", "numeric", b, c)
+        if isinstance(b, int) and isinstance(c, int):
+            entry["delta"] = c - b
+        changes.append(entry)
+    if base_view["segment_status"] != cand_view["segment_status"]:
+        changes.append(_rev_change(
+            "segment_status", "evidence",
+            base_view["segment_status"], cand_view["segment_status"],
+        ))
+    b_pc = {_rev_key_tuple(x["control"]): x for x in base_view["per_control"]}
+    c_pc = {_rev_key_tuple(x["control"]): x for x in cand_view["per_control"]}
+    allocations_changed = False
+    rows = []
+    for key in sorted(set(b_pc) | set(c_pc)):
+        b = b_pc.get(key)
+        c = c_pc.get(key)
+        b_val = b["allocated_wh"] if b else None
+        c_val = c["allocated_wh"] if c else None
+        row = {
+            "control": _rev_key_obj(key),
+            "baseline_allocated_wh": b_val,
+            "candidate_allocated_wh": c_val,
+            "delta_allocated_wh": (
+                c_val - b_val if isinstance(b_val, int) and isinstance(c_val, int) else None
+            ),
+            "baseline_amount_fraction": b["amount_fraction"] if b else None,
+            "candidate_amount_fraction": c["amount_fraction"] if c else None,
+            "delta_amount_fraction": _rev_amount_delta(
+                b["amount_fraction"] if b else None,
+                c["amount_fraction"] if c else None,
+            ),
+        }
+        rows.append(row)
+        if (b is None) != (c is None) or row["delta_allocated_wh"] not in (0, None) \
+                or row["delta_amount_fraction"] not in ("0", None):
+            allocations_changed = True
+    if allocations_changed:
+        changes.append({
+            "field": "allocated_by_control",
+            "kind": "numeric",
+            "baseline": [
+                {"control": r["control"], "allocated_wh": r["baseline_allocated_wh"],
+                 "amount_fraction": r["baseline_amount_fraction"]}
+                for r in rows
+            ],
+            "candidate": [
+                {"control": r["control"], "allocated_wh": r["candidate_allocated_wh"],
+                 "amount_fraction": r["candidate_amount_fraction"]}
+                for r in rows
+            ],
+            "delta": [
+                {"control": r["control"], "allocated_wh": r["delta_allocated_wh"],
+                 "amount_fraction": r["delta_amount_fraction"]}
+                for r in rows
+            ],
+        })
+    for field, label in (
+        ("reading", "reading"),
+        ("binding", "binding"),
+        ("tariff", "tariff"),
+        ("calendar", "calendar"),
+    ):
+        if base_view["signatures"][field] != cand_view["signatures"][field]:
+            changes.append(_rev_change(
+                label, "evidence",
+                base_view["signatures"][field], cand_view["signatures"][field],
+            ))
+    delta_wh = None
+    if isinstance(base_view["allocated_wh_in_scope"], int) \
+            and isinstance(cand_view["allocated_wh_in_scope"], int):
+        delta_wh = cand_view["allocated_wh_in_scope"] - base_view["allocated_wh_in_scope"]
+    delta_amount = _rev_amount_delta(
+        base_view["amount_fraction_in_scope"],
+        cand_view["amount_fraction_in_scope"],
+    )
+    return ("changed" if changes else "unchanged"), changes, delta_wh, delta_amount
+
+
+def _rev_cross_attribution_conflicts(
+    side_self: dict,
+    side_other: dict,
+    scope: str,
+) -> list[dict]:
+    """Segments attributed to this scope here but unresolved/unattributed there."""
+    out: list[dict] = []
+    identities = {
+        key for key, rec in side_self["segments"].items() if scope in rec["scope_ids"]
+    }
+    for key in sorted(identities):
+        other = side_other["segments"].get(key)
+        if other is None:
+            continue
+        if scope in other["scope_ids"]:
+            continue
+        if other["complete"]:
+            # Cleanly attributed to another scope: a real reassignment, not a failure.
+            continue
+        out.append({
+            "code": "segment_attribution_not_resolved_on_other_side",
+            "segment": {
+                "meter_id": key[0], "start_utc": key[1], "end_utc": key[2],
+            },
+            "other_side_status": other["status"],
+            "other_side_scope_ids": other["scope_ids"],
+            "other_side_candidate_controls": other["candidate_controls"],
+            "other_side_issues": other["issues"],
+            "other_side_reading_evidence": other["reading_evidence"],
+            "other_side_binding_evidence": other["binding_evidence"],
+            "message": (
+                "this reading segment is attributed to the scope on one side but has unresolved "
+                "binding/reading evidence on the other; the scope cannot be compared"
+            ),
+        })
+    return out
+
+
+def _rev_cell_state_label(cell: Optional[dict]) -> str:
+    if cell is None:
+        return "absent"
+    return cell.get("settlement_state", "absent")
+
+
+def _rev_not_comparable_days(
+    base_cells: dict, cand_cells: dict, base_segs: dict, cand_segs: dict
+) -> list[dict]:
+    """Structure the not_comparable scope by billing day without any values."""
+    days: dict[str, dict] = {}
+    for key in sorted(set(base_cells) | set(cand_cells)):
+        control = _rev_key_obj(key)
+        entry = days.setdefault(key[1], {"billing_day": key[1], "rates": [], "reading_segments": []})
+        entry["rates"].append({
+            "rate_id": key[2],
+            "change": "not_comparable",
+            "baseline_allocated_wh": None,
+            "candidate_allocated_wh": None,
+            "delta_allocated_wh": None,
+            "baseline_target_wh": base_cells[key]["target_wh"] if key in base_cells else None,
+            "candidate_target_wh": cand_cells[key]["target_wh"] if key in cand_cells else None,
+            "baseline_amount_fraction": None,
+            "candidate_amount_fraction": None,
+            "delta_amount_fraction": None,
+        })
+    for key in sorted(set(base_segs) | set(cand_segs)):
+        seen_days: set[str] = set()
+        for side in (base_segs.get(key), cand_segs.get(key)):
+            if not side:
+                continue
+            for atom in side["atoms"]:
+                seen_days.add(atom["control"]["billing_day"])
+            for obj in side["candidate_controls"]:
+                seen_days.add(obj["billing_day"])
+        for day in sorted(seen_days):
+            entry = days.setdefault(day, {"billing_day": day, "rates": [], "reading_segments": []})
+            entry["reading_segments"].append({
+                "segment": {"meter_id": key[0], "start_utc": key[1], "end_utc": key[2]},
+                "change": "not_comparable",
+                "delta_allocated_wh": None,
+            })
+    return [days[k] for k in sorted(days)]
+
+
+def _rev_build_scope_result(
+    scope: str,
+    base: dict,
+    cand: dict,
+    base_state: dict,
+    cand_state: dict,
+) -> dict:
+    comparable = (
+        base_state["presence"] in ("complete", "absent")
+        and cand_state["presence"] in ("complete", "absent")
+        and (base_state["presence"] == "complete" or cand_state["presence"] == "complete")
+    )
+    base_cells = {
+        key: cell for key, cell in base["controls"].items() if key[0] == scope
+    }
+    cand_cells = {
+        key: cell for key, cell in cand["controls"].items() if key[0] == scope
+    }
+    base_segs = {
+        key: rec for key, rec in base["segments"].items() if scope in rec["scope_ids"]
+    }
+    cand_segs = {
+        key: rec for key, rec in cand["segments"].items() if scope in rec["scope_ids"]
+    }
+
+    result: dict = {
+        "scope_id": scope,
+        "comparability": "comparable" if comparable else "not_comparable",
+        "baseline_presence": base_state["presence"],
+        "candidate_presence": cand_state["presence"],
+        "baseline_settlement_overall_status": base["overall_settlement_status"],
+        "candidate_settlement_overall_status": cand["overall_settlement_status"],
+    }
+    if not comparable:
+        conflicts_base = base_state["conflicts"]
+        conflicts_cand = cand_state["conflicts"]
+        reasons: list[str] = []
+        for label, presence, conflicts in (
+            ("baseline", base_state["presence"], conflicts_base),
+            ("candidate", cand_state["presence"], conflicts_cand),
+        ):
+            if presence == "incomplete":
+                reasons.append(f"{label}_not_settleable_or_evidence_insufficient")
+            elif presence == "absent" and conflicts:
+                reasons.append(f"{label}_absence_cannot_be_established")
+        if not reasons:
+            reasons.append("both_sides_absent")
+        result.update({
+            "reason": reasons,
+            "message": (
+                "该结算范围至少一侧无法形成完整、已复核的结算结果；"
+                "不做数值比较，也不把缺失侧当作零值。"
+            ),
+            "conflicts": {"baseline": conflicts_base, "candidate": conflicts_cand},
+            "control_cells": [
+                {
+                    "control": _rev_key_obj(key),
+                    "change": "not_comparable",
+                    "baseline": _rev_cell_view(base_cells[key]) if key in base_cells else None,
+                    "candidate": _rev_cell_view(cand_cells[key]) if key in cand_cells else None,
+                    "changes": [],
+                    "delta_allocated_wh": None,
+                    "delta_amount_fraction": None,
+                    "note": "no numeric comparison is made for this scope",
+                }
+                for key in sorted(set(base_cells) | set(cand_cells))
+            ],
+            "reading_segments": [
+                {
+                    "segment": {
+                        "meter_id": key[0], "start_utc": key[1], "end_utc": key[2],
+                    },
+                    "change": "not_comparable",
+                    "baseline": _rev_segment_view(base_segs[key], scope) if key in base_segs else None,
+                    "candidate": _rev_segment_view(cand_segs[key], scope) if key in cand_segs else None,
+                    "changes": [],
+                    "delta_allocated_wh": None,
+                    "delta_amount_fraction": None,
+                    "note": "no numeric comparison is made for this scope",
+                }
+                for key in sorted(set(base_segs) | set(cand_segs))
+            ],
+            "rollup": {
+                "control_cells": {"added": 0, "removed": 0, "changed": 0, "unchanged": 0,
+                                  "not_comparable": len(set(base_cells) | set(cand_cells))},
+                "reading_segments": {"added": 0, "removed": 0, "changed": 0, "unchanged": 0,
+                                     "not_comparable": len(set(base_segs) | set(cand_segs))},
+                "delta_over_shared_control_cells": {
+                    "allocated_wh": None,
+                    "amount_fraction": None,
+                    "note": "not comparable; no delta is computed and no side is treated as zero",
+                },
+            },
+            "by_billing_day": _rev_not_comparable_days(base_cells, cand_cells, base_segs, cand_segs),
+        })
+        return result
+
+    cell_entries: list[dict] = []
+    cell_counts = {"added": 0, "removed": 0, "changed": 0, "unchanged": 0}
+    shared_delta_wh = 0
+    shared_delta_any = False
+    shared_delta_amount = Fraction(0)
+    shared_delta_amount_any = False
+    added_value_wh = 0
+    removed_value_wh = 0
+    added_amount = Fraction(0)
+    removed_amount = Fraction(0)
+
+    for key in sorted(set(base_cells) | set(cand_cells)):
+        b = base_cells.get(key)
+        c = cand_cells.get(key)
+        b_view = _rev_cell_view(b) if b is not None else None
+        c_view = _rev_cell_view(c) if c is not None else None
+        entry: dict = {
+            "control": _rev_key_obj(key),
+            "baseline": b_view,
+            "candidate": c_view,
+            "changes": [],
+            "delta_allocated_wh": None,
+            "delta_amount_fraction": None,
+        }
+        if b is None:
+            entry["change"] = "added"
+            entry["note"] = "scope/cell absent from baseline input; value shown without assuming baseline 0"
+            cell_counts["added"] += 1
+            if c_view["allocated_wh"] is not None:
+                added_value_wh += c_view["allocated_wh"]
+            if c_view["amount_fraction"] is not None:
+                added_amount += Fraction(c_view["amount_fraction"])
+        elif c is None:
+            entry["change"] = "removed"
+            entry["note"] = "scope/cell absent from candidate input; value shown without assuming candidate 0"
+            cell_counts["removed"] += 1
+            if b_view["allocated_wh"] is not None:
+                removed_value_wh += b_view["allocated_wh"]
+            if b_view["amount_fraction"] is not None:
+                removed_amount += Fraction(b_view["amount_fraction"])
+        else:
+            change, changes, delta_wh, delta_amount = _rev_compare_cell(b_view, c_view)
+            entry["change"] = change
+            entry["changes"] = changes
+            entry["delta_allocated_wh"] = delta_wh
+            entry["delta_amount_fraction"] = delta_amount
+            cell_counts[change] += 1
+            if delta_wh is not None:
+                shared_delta_wh += delta_wh
+                shared_delta_any = True
+            if delta_amount is not None:
+                shared_delta_amount += Fraction(delta_amount)
+                shared_delta_amount_any = True
+        cell_entries.append(entry)
+
+    seg_entries: list[dict] = []
+    seg_counts = {"added": 0, "removed": 0, "changed": 0, "unchanged": 0}
+    seg_delta_wh_total = 0
+    seg_delta_any = False
+    seg_added_wh = 0
+    seg_removed_wh = 0
+
+    for key in sorted(set(base_segs) | set(cand_segs)):
+        b = base_segs.get(key)
+        c = cand_segs.get(key)
+        b_view = _rev_segment_view(b, scope) if b is not None else None
+        c_view = _rev_segment_view(c, scope) if c is not None else None
+        entry = {
+            "segment": {"meter_id": key[0], "start_utc": key[1], "end_utc": key[2]},
+            "baseline": b_view,
+            "candidate": c_view,
+            "changes": [],
+            "delta_allocated_wh": None,
+            "delta_amount_fraction": None,
+        }
+        if b is None:
+            entry["change"] = "added"
+            entry["note"] = "segment absent from baseline input; value shown without assuming baseline 0"
+            seg_counts["added"] += 1
+            if c_view["allocated_wh_in_scope"] is not None:
+                seg_added_wh += c_view["allocated_wh_in_scope"]
+        elif c is None:
+            entry["change"] = "removed"
+            entry["note"] = "segment absent from candidate input; value shown without assuming candidate 0"
+            seg_counts["removed"] += 1
+            if b_view["allocated_wh_in_scope"] is not None:
+                seg_removed_wh += b_view["allocated_wh_in_scope"]
+        else:
+            change, changes, delta_wh, delta_amount = _rev_compare_segment(b_view, c_view)
+            entry["change"] = change
+            entry["changes"] = changes
+            entry["delta_allocated_wh"] = delta_wh
+            entry["delta_amount_fraction"] = delta_amount
+            seg_counts[change] += 1
+            if delta_wh is not None:
+                seg_delta_wh_total += delta_wh
+                seg_delta_any = True
+        seg_entries.append(entry)
+
+    # Group by billing day x rate, plus the segments that allocate into that day.
+    days: dict[str, dict] = {}
+    for entry in cell_entries:
+        control = entry["control"]
+        day = days.setdefault(control["billing_day"], {"billing_day": control["billing_day"], "rates": [], "segment_refs": {}})
+        day["rates"].append({
+            "rate_id": control["rate_id"],
+            "change": entry["change"],
+            "baseline_allocated_wh": entry["baseline"]["allocated_wh"] if entry["baseline"] else None,
+            "candidate_allocated_wh": entry["candidate"]["allocated_wh"] if entry["candidate"] else None,
+            "delta_allocated_wh": entry["delta_allocated_wh"],
+            "baseline_target_wh": entry["baseline"]["target_wh"] if entry["baseline"] else None,
+            "candidate_target_wh": entry["candidate"]["target_wh"] if entry["candidate"] else None,
+            "baseline_amount_fraction": entry["baseline"]["amount_fraction"] if entry["baseline"] else None,
+            "candidate_amount_fraction": entry["candidate"]["amount_fraction"] if entry["candidate"] else None,
+            "delta_amount_fraction": entry["delta_amount_fraction"],
+        })
+    for entry in seg_entries:
+        seen_days: set[str] = set()
+        for side_view in (entry["baseline"], entry["candidate"]):
+            if not side_view:
+                continue
+            for pc in side_view["per_control"]:
+                seen_days.add(pc["control"]["billing_day"])
+            for pc in side_view.get("candidate_controls", []):
+                seen_days.add(pc["billing_day"])
+        for day in sorted(seen_days):
+            bucket = days.setdefault(day, {"billing_day": day, "rates": [], "segment_refs": {}})
+            bucket["segment_refs"][tuple(sorted(entry["segment"].items()))] = {
+                "segment": entry["segment"],
+                "change": entry["change"],
+                "delta_allocated_wh": entry["delta_allocated_wh"],
+            }
+    by_day = []
+    for day in sorted(days):
+        d = days[day]
+        by_day.append({
+            "billing_day": d["billing_day"],
+            "rates": sorted(d["rates"], key=lambda r: r["rate_id"]),
+            "reading_segments": [
+                d["segment_refs"][k] for k in sorted(d["segment_refs"])
+            ],
+        })
+
+    result.update({
+        "control_cells": cell_entries,
+        "reading_segments": seg_entries,
+        "by_billing_day": by_day,
+        "rollup": {
+            "control_cells": cell_counts,
+            "reading_segments": seg_counts,
+            "delta_over_shared_control_cells": {
+                "allocated_wh": shared_delta_wh if shared_delta_any else None,
+                "amount_fraction": frac_str(shared_delta_amount) if shared_delta_amount_any else None,
+                "note": "只累计双方都存在且都已复核的控制格；单一侧存在的新增/消失不计入差，也不按 0 处理",
+            },
+            "delta_over_shared_reading_segments": {
+                "allocated_wh": seg_delta_wh_total if seg_delta_any else None,
+                "note": "只累计双方都存在且都已复核的读数段",
+            },
+            "added_values_not_delta": {
+                "allocated_wh": added_value_wh,
+                "amount_fraction": frac_str(added_amount),
+            },
+            "removed_values_not_delta": {
+                "allocated_wh": removed_value_wh,
+                "amount_fraction": frac_str(removed_amount),
+            },
+            "segment_added_values_not_delta": {"allocated_wh": seg_added_wh},
+            "segment_removed_values_not_delta": {"allocated_wh": seg_removed_wh},
+        },
+    })
+    return result
+
+
+def _rev_scope_union(base: dict, cand: dict, extra_scopes: set[str]) -> list[str]:
+    scopes = set(base["scope_ids"]) | set(cand["scope_ids"]) | set(extra_scopes)
+    for side in (base, cand):
+        for rec in side["segments"].values():
+            if not rec["scope_ids"]:
+                scopes.add("")
+    scopes.discard("")
+    return sorted(scopes)
+
+
+def _rev_fatal(failed_side: str, exc: InputError, path_info: dict) -> dict:
+    return {
+        "report_type": "revision_impact_analysis",
+        "overall_status": "fatal_input_error",
+        "overall_status_label": REVISION_IMPACT_STATUS_LABELS["fatal_input_error"],
+        "failed_side": failed_side,
+        "error": str(exc),
+        "error_type": "InputError",
+        "input_audit": path_info,
+        "rule_version": {
+            "impact_rule_version": REVISION_IMPACT_RULE_VERSION,
+            "engine_rule_version": ENGINE_RULE_VERSION,
+        },
+    }
+
+
+def revision_impact(
+    baseline_root: dict,
+    candidate_root: dict,
+    baseline_path: Optional[Path] = None,
+    candidate_path: Optional[Path] = None,
+    baseline_raw: Optional[bytes] = None,
+    candidate_raw: Optional[bytes] = None,
+) -> dict:
+    def audit(path: Optional[Path], raw: Optional[bytes], root: dict) -> dict:
+        return {
+            "path": str(path) if path else None,
+            "sha256": hashlib.sha256(raw).hexdigest() if raw else None,
+            "input_rule_version": root.get("rule_version", "unspecified"),
+        }
+
+    input_audit = {
+        "baseline": audit(baseline_path, baseline_raw, baseline_root),
+        "candidate": audit(candidate_path, candidate_raw, candidate_root),
+    }
+    try:
+        base = _rev_build_side("baseline", baseline_root, baseline_path, baseline_raw)
+    except InputError as exc:
+        return _rev_fatal("baseline", exc, input_audit)
+    try:
+        cand = _rev_build_side("candidate", candidate_root, candidate_path, candidate_raw)
+    except InputError as exc:
+        return _rev_fatal("candidate", exc, input_audit)
+
+    scopes = _rev_scope_union(base, cand, set())
+    scope_results: list[dict] = []
+    for scope in scopes:
+        base_state = _rev_side_scope_state(base, scope)
+        cand_state = _rev_side_scope_state(cand, scope)
+        cross_base = _rev_cross_attribution_conflicts(base, cand, scope)
+        cross_cand = _rev_cross_attribution_conflicts(cand, base, scope)
+        if cross_base:
+            # A baseline segment claims this scope but the candidate side cannot
+            # resolve its attribution: the candidate is the incomplete side.
+            cand_state = {
+                "presence": "incomplete",
+                "conflicts": cand_state["conflicts"] + cross_base,
+            }
+        if cross_cand:
+            base_state = {
+                "presence": "incomplete",
+                "conflicts": base_state["conflicts"] + cross_cand,
+            }
+        if base_state["presence"] == "absent" and cand_state["presence"] == "absent":
+            continue
+        scope_results.append(
+            _rev_build_scope_result(scope, base, cand, base_state, cand_state)
+        )
+
+    comparable = [s for s in scope_results if s["comparability"] == "comparable"]
+    not_comparable = [s for s in scope_results if s["comparability"] == "not_comparable"]
+
+    cell_totals = {"added": 0, "removed": 0, "changed": 0, "unchanged": 0}
+    seg_totals = {"added": 0, "removed": 0, "changed": 0, "unchanged": 0}
+    delta_wh = 0
+    delta_wh_any = False
+    delta_amount = Fraction(0)
+    delta_amount_any = False
+    for s in comparable:
+        for k in cell_totals:
+            cell_totals[k] += s["rollup"]["control_cells"].get(k, 0)
+        for k in seg_totals:
+            seg_totals[k] += s["rollup"]["reading_segments"].get(k, 0)
+        ds = s["rollup"]["delta_over_shared_control_cells"]
+        if ds["allocated_wh"] is not None:
+            delta_wh += ds["allocated_wh"]
+            delta_wh_any = True
+        if ds["amount_fraction"] is not None:
+            delta_amount += Fraction(ds["amount_fraction"])
+            delta_amount_any = True
+
+    if not scope_results:
+        overall = "no_scopes"
+    elif not not_comparable:
+        overall = "all_scopes_comparable"
+    elif comparable:
+        overall = "partial_comparability"
+    else:
+        overall = "not_comparable"
+
+    rule_version_differs = (
+        baseline_root.get("rule_version", "unspecified")
+        != candidate_root.get("rule_version", "unspecified")
+    )
+    total_flags = sum(cell_totals.values()) + sum(seg_totals.values())
+    changes_present = any(cell_totals[k] for k in ("added", "removed", "changed")) or any(
+        seg_totals[k] for k in ("added", "removed", "changed")
+    )
+
+    return {
+        "report_type": "revision_impact_analysis",
+        "overall_status": overall,
+        "overall_status_label": REVISION_IMPACT_STATUS_LABELS[overall],
+        "has_changes": changes_present,
+        "rule_version": {
+            "impact_rule_version": REVISION_IMPACT_RULE_VERSION,
+            "engine_rule_version": ENGINE_RULE_VERSION,
+            "baseline_input_rule_version": baseline_root.get("rule_version", "unspecified"),
+            "candidate_input_rule_version": candidate_root.get("rule_version", "unspecified"),
+            "input_rule_version_changed": rule_version_differs,
+        },
+        "input_audit": input_audit,
+        "rules": {
+            "comparability": REVISION_COMPARABILITY_RULE,
+            "identity": REVISION_IDENTITY_RULE,
+            "change_categories": REVISION_SETTLEMENT_BASIS_RULES["change_categories"],
+            "settlement_basis": {
+                k: v for k, v in REVISION_SETTLEMENT_BASIS_RULES.items()
+                if k != "change_categories"
+            },
+        },
+        "summary": {
+            "scope_count": len(scope_results),
+            "comparable_scope_count": len(comparable),
+            "not_comparable_scope_count": len(not_comparable),
+            "control_cells": cell_totals,
+            "reading_segments": seg_totals,
+            "comparable_scope_delta_over_shared_control_cells": {
+                "allocated_wh": delta_wh if delta_wh_any else None,
+                "amount_fraction": frac_str(delta_amount) if delta_amount_any else None,
+                "note": "只对可比范围内双方都存在且已复核的控制格求和；新增/消失不按 0 参与差值",
+            },
+            "not_comparable_scopes": [s["scope_id"] for s in not_comparable],
+            "unscoped_segment_count": {
+                "baseline": len(base["unscoped_segments"]),
+                "candidate": len(cand["unscoped_segments"]),
+            },
+            "compared_entry_count": total_flags,
+        },
+        "scopes": scope_results,
+        "evidence_catalog": {
+            "note": (
+                "未结算连通范围的完整证据按 range_id 仅存一份；"
+                "scope.conflicts[].range_id 可在对应侧的 catalog 中解析，避免同一范围跨多个 scope 时重复。"
+            ),
+            "baseline": base["range_evidence"],
+            "candidate": cand["range_evidence"],
+        },
+        "unscoped_segments": {
+            "baseline": base["unscoped_segments"],
+            "candidate": cand["unscoped_segments"],
+        },
+    }
+
+
+def write_revision_impact_csv(report: dict, path: Path) -> None:
+    import csv
+    fields = [
+        "scope_id", "comparability", "billing_day", "rate_id", "cell_change",
+        "baseline_target_wh", "candidate_target_wh",
+        "baseline_allocated_wh", "candidate_allocated_wh", "delta_allocated_wh",
+        "baseline_amount_fraction", "candidate_amount_fraction", "delta_amount_fraction",
+        "baseline_settlement_state", "candidate_settlement_state", "reason",
+    ]
+    with path.open("w", encoding="utf-8", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=fields)
+        writer.writeheader()
+        for scope in report.get("scopes", []):
+            if scope["comparability"] != "comparable":
+                for cell in scope["control_cells"]:
+                    control = cell["control"]
+                    writer.writerow({
+                        "scope_id": scope["scope_id"],
+                        "comparability": scope["comparability"],
+                        "billing_day": control["billing_day"],
+                        "rate_id": control["rate_id"],
+                        "cell_change": cell["change"],
+                        "baseline_settlement_state": _rev_cell_state_label(cell["baseline"]),
+                        "candidate_settlement_state": _rev_cell_state_label(cell["candidate"]),
+                        "reason": ";".join(scope["reason"]),
+                    })
+                continue
+            for cell in scope["control_cells"]:
+                control = cell["control"]
+                writer.writerow({
+                    "scope_id": scope["scope_id"],
+                    "comparability": scope["comparability"],
+                    "billing_day": control["billing_day"],
+                    "rate_id": control["rate_id"],
+                    "cell_change": cell["change"],
+                    "baseline_target_wh": "" if not cell["baseline"] or cell["baseline"]["target_wh"] is None else cell["baseline"]["target_wh"],
+                    "candidate_target_wh": "" if not cell["candidate"] or cell["candidate"]["target_wh"] is None else cell["candidate"]["target_wh"],
+                    "baseline_allocated_wh": "" if not cell["baseline"] or cell["baseline"]["allocated_wh"] is None else cell["baseline"]["allocated_wh"],
+                    "candidate_allocated_wh": "" if not cell["candidate"] or cell["candidate"]["allocated_wh"] is None else cell["candidate"]["allocated_wh"],
+                    "delta_allocated_wh": "" if cell["delta_allocated_wh"] is None else cell["delta_allocated_wh"],
+                    "baseline_amount_fraction": "" if not cell["baseline"] else cell["baseline"]["amount_fraction"] or "",
+                    "candidate_amount_fraction": "" if not cell["candidate"] else cell["candidate"]["amount_fraction"] or "",
+                    "delta_amount_fraction": cell["delta_amount_fraction"] or "",
+                    "baseline_settlement_state": cell["baseline"]["settlement_state"] if cell["baseline"] else "absent",
+                    "candidate_settlement_state": cell["candidate"]["settlement_state"] if cell["candidate"] else "absent",
+                    "reason": "",
+                })
+
+
 def settle(root: dict, input_path: Optional[Path] = None, raw_bytes: Optional[bytes] = None) -> dict:
     calendars = load_calendars(root)
     segments, excluded, reading_issues = build_segments(root)
@@ -2652,7 +4110,7 @@ def main(argv: Optional[list[str]] = None) -> int:
     parser = argparse.ArgumentParser(
         description=(
             "Auditable meter time-of-use integer allocator, with optional "
-            "planned collection-window reconciliation"
+            "planned collection-window reconciliation and revision impact analysis"
         )
     )
     parser.add_argument("--input", "-i", type=Path, help="Input JSON path")
@@ -2678,7 +4136,80 @@ def main(argv: Optional[list[str]] = None) -> int:
         ),
     )
     parser.add_argument("--pretty", action="store_true", default=True, help="Indent JSON output")
+    parser.add_argument(
+        "--baseline", type=Path,
+        help="Baseline settlement input for revision impact analysis (required with --impact)",
+    )
+    parser.add_argument(
+        "--candidate", type=Path,
+        help="Candidate revision input for revision impact analysis (required with --impact)",
+    )
+    parser.add_argument(
+        "--impact", action="store_true",
+        help=(
+            "Compare a baseline settlement input with a candidate revision input and write "
+            "the revision impact report. Does not require an existing settlement output. "
+            "JSON goes to --impact-output (or --output / stdout)."
+        ),
+    )
+    parser.add_argument(
+        "--impact-output", type=Path,
+        help="Write the revision impact report to this JSON path (implies --impact)",
+    )
+    parser.add_argument(
+        "--impact-csv", type=Path,
+        help="Write one row per compared control cell to this CSV path (implies --impact)",
+    )
     args = parser.parse_args(argv)
+
+    wants_impact = bool(args.impact or args.impact_output or args.impact_csv)
+    if wants_impact:
+        if not args.baseline or not args.candidate:
+            parser.error("--impact requires --baseline and --candidate")
+        if args.reconcile_only or args.reconcile or args.reconcile_output or args.reconcile_csv:
+            parser.error("--impact cannot be combined with planned-window reconciliation options")
+        if args.input or args.csv:
+            parser.error("--impact reads --baseline and --candidate directly; --input/--csv are not applicable")
+        try:
+            baseline_raw = args.baseline.read_bytes()
+            candidate_raw = args.candidate.read_bytes()
+            try:
+                baseline_root = json.loads(baseline_raw.decode("utf-8"))
+                candidate_root = json.loads(candidate_raw.decode("utf-8"))
+            except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+                raise InputError(f"invalid JSON input: {exc}") from exc
+            for label, obj in (("baseline", baseline_root), ("candidate", candidate_root)):
+                if not isinstance(obj, dict):
+                    raise InputError(f"{label}: top-level JSON value must be an object")
+            impact = revision_impact(
+                baseline_root, candidate_root,
+                args.baseline.resolve(), args.candidate.resolve(),
+                baseline_raw, candidate_raw,
+            )
+            text = json.dumps(impact, ensure_ascii=False, indent=2 if args.pretty else None)
+            target = args.impact_output or args.output
+            if target:
+                _write_text_atomic(target, text)
+            else:
+                sys.stdout.write(text + "\n")
+            if args.impact_csv:
+                args.impact_csv.parent.mkdir(parents=True, exist_ok=True)
+                write_revision_impact_csv(impact, args.impact_csv)
+            return 2 if impact["overall_status"] == "fatal_input_error" else 0
+        except InputError as exc:
+            err = {
+                "report_type": "revision_impact_analysis",
+                "overall_status": "fatal_input_error",
+                "error": str(exc),
+                "error_type": "InputError",
+            }
+            text = json.dumps(err, ensure_ascii=False, indent=2)
+            target = args.impact_output or args.output
+            if target:
+                _write_text_atomic(target, text)
+            else:
+                sys.stderr.write(text + "\n")
+            return 2
 
     if not args.input:
         parser.print_help()
