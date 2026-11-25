@@ -1,0 +1,6 @@
+batch_id,batch_index,scope_id,billing_day,entry_type,entry_type_label,delta_cents,before_line_id,after_line_id,before_apportioned_amount_cents,after_apportioned_amount_cents,system_amount_cents,before_daily_difference_cents,after_daily_difference_cents
+R1-2025-03-10,1,S-PARK,2025-03-03,supplementary,补记,33,BL-A,N8-A,300,333,300,0,33
+R1-2025-03-10,1,S-PARK,2025-03-04,reversal,冲回,-20,BL-B,N8-B,400,380,400,0,-20
+R2-2025-03-13,2,S-PARK,2025-03-02,reversal,冲回,-8,BL-A,N5,200,192,200,0,-8
+R2-2025-03-13,2,S-PARK,2025-03-03,reversal,冲回,-45,N8-A,N5,333,288,300,33,-12
+R2-2025-03-13,2,S-PARK,2025-03-04,supplementary,补记,20,N8-B,BL-B,380,400,400,-20,0

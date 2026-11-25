@@ -301,3 +301,46 @@ c_j=C_j-\sum_{e\in j}\lfloor q_e\rfloor
 - `R006`：每个局部都能舍入，但整体无分配的广义 Hall 冲突。
 
 计划窗口核对的逐窗口手算过程见同一文档第 5 节。修订影响分析的可比较性判定见第 6 节与 `tests/test_revision_impact.py`。
+
+## 8. 补差账本（迟到的电费换单）
+
+园区有时先收到**后生效**的电费换单、几天后才收到**更早生效**的一张。新增的补差账本按供电方**生效序号**（而非接收日期）裁定哪些换单入账，按**实际接收批次**交付本次需补记/冲回的**日差额**，并冻结每批接收后财务当时所见的结果，落盘后可重开查询。只处理电能费用。
+
+完整契约、公式、API 与手算叙事见 [`docs/makeup_ledger.md`](docs/makeup_ledger.md)，测试见 `tests/test_makeup_ledger.py`。原结算/核对/影响分析入口与输出保持不变（既有 48 个测试与 `park_result.json` 逐字段一致）。
+
+最小 CLI 流程：
+
+```bash
+# 开账（固定结算输入 + 无重叠原账单）
+python3 -I /workspace/meter_allocator.py \
+  --ledger-open /workspace/examples/ledger_opening.json \
+  --ledger-store /tmp/park_ledger.json
+# 接收一个批次（一张或多张换单，整体校验/改判/补记/落盘）
+python3 -I /workspace/meter_allocator.py \
+  --ledger-receive /workspace/examples/ledger_batch_1.json \
+  --ledger-store /tmp/park_ledger.json \
+  --ledger-postings-csv /tmp/postings.csv
+# 查询某批冻结视图 / 批次清单
+python3 -I /workspace/meter_allocator.py --ledger-view R1-2025-03-10 --ledger-store /tmp/park_ledger.json
+python3 -I /workspace/meter_allocator.py --ledger-history --ledger-store /tmp/park_ledger.json
+```
+
+也可用等价入口 `python3 -I /workspace/makeup_ledger.py ...`。Python API 核心：
+
+```python
+ledger = MOD.open_makeup_ledger(settlement=root, original_bills=[...], store_path="ledger.json")
+result = ledger.receive_batch({"batch_id": "R1", "exchanges": [...]})
+ledger.view("R1")            # 该批后冻结的归属/日分摊/日差额/结算依据
+MOD.MakeupLedger.load("ledger.json")
+```
+
+关键规则：
+
+- **开账门控**：账单覆盖的每个 `(scope, day)` 都要有已核验结算格，相关格与读数段全部 settled/verified，系统金额合计非负；基线有任何无法归属 scope 的结算阻断证据即拒绝开账。
+- **分摊**：行金额（非负整数分）按各日精确系统金额比例，先 floor 再按小数余量从大到小补齐余分，同余量取较早日期，全零等权。日差额 = 分摊分值 − 四舍五入到分的系统日金额。
+- **裁定**：按 `effective_seq` 从开账折叠；区间内每天当时必须归属于所列旧行之一、且每个旧行至少命中一天，否则整单 `pending_verification`（待核）、无日变更。生效只替换区间内归属与分摊，旧行剩余日期的已分金额不变。
+- **增量**：只重裁新单及同范围经日期重叠传递可达的较晚单；结果与“全部已收单按序号从开账重判”严格一致（`verify_incremental_matches_full_refold()`）。迟到早序单可让晚序待核单生效，也可让原已生效单转待核。
+- **补记/冲回**：每条日分录 = 当前日差额 − 接收前日差额；`>0` 补记、`<0` 冲回。
+- **唯一性/幂等/原子**：新行号全账本唯一；有效编号同内容重送为 no-op、改内容拒绝；结构非法整批不接收；接收、改判、分录与原子落盘整体生效；每批留存含旧行/新行/结算依据的冻结财务视图。
+
+

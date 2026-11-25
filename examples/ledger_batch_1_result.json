@@ -1,0 +1,2485 @@
+{
+  "report_type": "makeup_ledger_batch_result",
+  "ledger_id": "PARK-ENERGY-2025-03",
+  "rule_version": "makeup-difference-ledger-1.0.0",
+  "batch_id": "R1-2025-03-10",
+  "batch_index": 1,
+  "received_at": "2025-03-10T09:30:00Z",
+  "note": null,
+  "effective_attribution": [
+    {
+      "scope_id": "S-PARK",
+      "billing_day": "2025-03-01",
+      "line_id": "BL-A",
+      "line_kind": "original",
+      "source_exchange_id": null
+    },
+    {
+      "scope_id": "S-PARK",
+      "billing_day": "2025-03-02",
+      "line_id": "BL-A",
+      "line_kind": "original",
+      "source_exchange_id": null
+    },
+    {
+      "scope_id": "S-PARK",
+      "billing_day": "2025-03-03",
+      "line_id": "N8-A",
+      "line_kind": "new",
+      "source_exchange_id": "EX-8"
+    },
+    {
+      "scope_id": "S-PARK",
+      "billing_day": "2025-03-04",
+      "line_id": "N8-B",
+      "line_kind": "new",
+      "source_exchange_id": "EX-8"
+    },
+    {
+      "scope_id": "S-PARK",
+      "billing_day": "2025-03-05",
+      "line_id": "BL-B",
+      "line_kind": "original",
+      "source_exchange_id": null
+    }
+  ],
+  "daily_ledger": [
+    {
+      "scope_id": "S-PARK",
+      "billing_day": "2025-03-01",
+      "line_id": "BL-A",
+      "line_kind": "original",
+      "apportioned_amount_cents": 100,
+      "system_amount_cents": 100,
+      "daily_difference_cents": 0,
+      "basis": {
+        "openable": true,
+        "system_amount_yuan_fraction": "1",
+        "system_amount_exact_cents_fraction": "100",
+        "system_amount_cents_rounded": 100,
+        "control_keys": [
+          {
+            "scope_id": "S-PARK",
+            "billing_day": "2025-03-01",
+            "rate_id": "energy-flat"
+          }
+        ],
+        "component_ids": [
+          "R001"
+        ],
+        "segment_ids": [
+          "SEG-M-L1-001"
+        ],
+        "settlement_evidence": [
+          {
+            "atom_id": "A00001",
+            "component_id": "R001",
+            "segment_id": "SEG-M-L1-001",
+            "rate_id": "energy-flat",
+            "allocated_wh": 100,
+            "unit_price": "1/100",
+            "amount_fraction": "1",
+            "rounding": "exact_integer",
+            "meter_id": "M-L1",
+            "binding_id": "b-l1",
+            "tariff_version": "tv-energy-1"
+          }
+        ]
+      }
+    },
+    {
+      "scope_id": "S-PARK",
+      "billing_day": "2025-03-02",
+      "line_id": "BL-A",
+      "line_kind": "original",
+      "apportioned_amount_cents": 200,
+      "system_amount_cents": 200,
+      "daily_difference_cents": 0,
+      "basis": {
+        "openable": true,
+        "system_amount_yuan_fraction": "2",
+        "system_amount_exact_cents_fraction": "200",
+        "system_amount_cents_rounded": 200,
+        "control_keys": [
+          {
+            "scope_id": "S-PARK",
+            "billing_day": "2025-03-02",
+            "rate_id": "energy-flat"
+          }
+        ],
+        "component_ids": [
+          "R002"
+        ],
+        "segment_ids": [
+          "SEG-M-L1-002"
+        ],
+        "settlement_evidence": [
+          {
+            "atom_id": "A00002",
+            "component_id": "R002",
+            "segment_id": "SEG-M-L1-002",
+            "rate_id": "energy-flat",
+            "allocated_wh": 200,
+            "unit_price": "1/100",
+            "amount_fraction": "2",
+            "rounding": "exact_integer",
+            "meter_id": "M-L1",
+            "binding_id": "b-l1",
+            "tariff_version": "tv-energy-1"
+          }
+        ]
+      }
+    },
+    {
+      "scope_id": "S-PARK",
+      "billing_day": "2025-03-03",
+      "line_id": "N8-A",
+      "line_kind": "new",
+      "apportioned_amount_cents": 333,
+      "system_amount_cents": 300,
+      "daily_difference_cents": 33,
+      "basis": {
+        "openable": true,
+        "system_amount_yuan_fraction": "3",
+        "system_amount_exact_cents_fraction": "300",
+        "system_amount_cents_rounded": 300,
+        "control_keys": [
+          {
+            "scope_id": "S-PARK",
+            "billing_day": "2025-03-03",
+            "rate_id": "energy-flat"
+          }
+        ],
+        "component_ids": [
+          "R003"
+        ],
+        "segment_ids": [
+          "SEG-M-L1-003"
+        ],
+        "settlement_evidence": [
+          {
+            "atom_id": "A00003",
+            "component_id": "R003",
+            "segment_id": "SEG-M-L1-003",
+            "rate_id": "energy-flat",
+            "allocated_wh": 300,
+            "unit_price": "1/100",
+            "amount_fraction": "3",
+            "rounding": "exact_integer",
+            "meter_id": "M-L1",
+            "binding_id": "b-l1",
+            "tariff_version": "tv-energy-1"
+          }
+        ]
+      }
+    },
+    {
+      "scope_id": "S-PARK",
+      "billing_day": "2025-03-04",
+      "line_id": "N8-B",
+      "line_kind": "new",
+      "apportioned_amount_cents": 380,
+      "system_amount_cents": 400,
+      "daily_difference_cents": -20,
+      "basis": {
+        "openable": true,
+        "system_amount_yuan_fraction": "4",
+        "system_amount_exact_cents_fraction": "400",
+        "system_amount_cents_rounded": 400,
+        "control_keys": [
+          {
+            "scope_id": "S-PARK",
+            "billing_day": "2025-03-04",
+            "rate_id": "energy-flat"
+          }
+        ],
+        "component_ids": [
+          "R004"
+        ],
+        "segment_ids": [
+          "SEG-M-L1-004"
+        ],
+        "settlement_evidence": [
+          {
+            "atom_id": "A00004",
+            "component_id": "R004",
+            "segment_id": "SEG-M-L1-004",
+            "rate_id": "energy-flat",
+            "allocated_wh": 400,
+            "unit_price": "1/100",
+            "amount_fraction": "4",
+            "rounding": "exact_integer",
+            "meter_id": "M-L1",
+            "binding_id": "b-l1",
+            "tariff_version": "tv-energy-1"
+          }
+        ]
+      }
+    },
+    {
+      "scope_id": "S-PARK",
+      "billing_day": "2025-03-05",
+      "line_id": "BL-B",
+      "line_kind": "original",
+      "apportioned_amount_cents": 500,
+      "system_amount_cents": 500,
+      "daily_difference_cents": 0,
+      "basis": {
+        "openable": true,
+        "system_amount_yuan_fraction": "5",
+        "system_amount_exact_cents_fraction": "500",
+        "system_amount_cents_rounded": 500,
+        "control_keys": [
+          {
+            "scope_id": "S-PARK",
+            "billing_day": "2025-03-05",
+            "rate_id": "energy-flat"
+          }
+        ],
+        "component_ids": [
+          "R005"
+        ],
+        "segment_ids": [
+          "SEG-M-L1-005"
+        ],
+        "settlement_evidence": [
+          {
+            "atom_id": "A00005",
+            "component_id": "R005",
+            "segment_id": "SEG-M-L1-005",
+            "rate_id": "energy-flat",
+            "allocated_wh": 500,
+            "unit_price": "1/100",
+            "amount_fraction": "5",
+            "rounding": "exact_integer",
+            "meter_id": "M-L1",
+            "binding_id": "b-l1",
+            "tariff_version": "tv-energy-1"
+          }
+        ]
+      }
+    }
+  ],
+  "line_catalog": {
+    "BL-A": {
+      "line_id": "BL-A",
+      "kind": "original",
+      "scope_id": "S-PARK",
+      "start_day": "2025-03-01",
+      "end_day": "2025-03-04",
+      "amount_cents": 600,
+      "fee_type": "active_energy",
+      "source_exchange_id": null,
+      "bill_id": null,
+      "apportionment": {
+        "2025-03-01": 100,
+        "2025-03-02": 200,
+        "2025-03-03": 300
+      }
+    },
+    "BL-B": {
+      "line_id": "BL-B",
+      "kind": "original",
+      "scope_id": "S-PARK",
+      "start_day": "2025-03-04",
+      "end_day": "2025-03-06",
+      "amount_cents": 900,
+      "fee_type": "active_energy",
+      "source_exchange_id": null,
+      "bill_id": null,
+      "apportionment": {
+        "2025-03-04": 400,
+        "2025-03-05": 500
+      }
+    },
+    "N8-A": {
+      "line_id": "N8-A",
+      "kind": "new",
+      "scope_id": "S-PARK",
+      "start_day": "2025-03-03",
+      "end_day": "2025-03-04",
+      "amount_cents": 333,
+      "fee_type": null,
+      "source_exchange_id": "EX-8",
+      "apportionment": {
+        "2025-03-03": 333
+      },
+      "created_batch_id": "R1-2025-03-10",
+      "created_batch_index": 1
+    },
+    "N8-B": {
+      "line_id": "N8-B",
+      "kind": "new",
+      "scope_id": "S-PARK",
+      "start_day": "2025-03-04",
+      "end_day": "2025-03-05",
+      "amount_cents": 380,
+      "fee_type": null,
+      "source_exchange_id": "EX-8",
+      "apportionment": {
+        "2025-03-04": 380
+      },
+      "created_batch_id": "R1-2025-03-10",
+      "created_batch_index": 1
+    }
+  },
+  "bill_lines": {
+    "BL-A": {
+      "line_id": "BL-A",
+      "kind": "original",
+      "scope_id": "S-PARK",
+      "start_day": "2025-03-01",
+      "end_day": "2025-03-04",
+      "amount_cents": 600,
+      "fee_type": "active_energy",
+      "source_exchange_id": null,
+      "bill_id": null,
+      "apportionment": {
+        "2025-03-01": 100,
+        "2025-03-02": 200,
+        "2025-03-03": 300
+      }
+    },
+    "BL-B": {
+      "line_id": "BL-B",
+      "kind": "original",
+      "scope_id": "S-PARK",
+      "start_day": "2025-03-04",
+      "end_day": "2025-03-06",
+      "amount_cents": 900,
+      "fee_type": "active_energy",
+      "source_exchange_id": null,
+      "bill_id": null,
+      "apportionment": {
+        "2025-03-04": 400,
+        "2025-03-05": 500
+      }
+    },
+    "N8-A": {
+      "line_id": "N8-A",
+      "kind": "new",
+      "scope_id": "S-PARK",
+      "start_day": "2025-03-03",
+      "end_day": "2025-03-04",
+      "amount_cents": 333,
+      "fee_type": null,
+      "source_exchange_id": "EX-8",
+      "apportionment": {
+        "2025-03-03": 333
+      },
+      "created_batch_id": "R1-2025-03-10",
+      "created_batch_index": 1
+    },
+    "N8-B": {
+      "line_id": "N8-B",
+      "kind": "new",
+      "scope_id": "S-PARK",
+      "start_day": "2025-03-04",
+      "end_day": "2025-03-05",
+      "amount_cents": 380,
+      "fee_type": null,
+      "source_exchange_id": "EX-8",
+      "apportionment": {
+        "2025-03-04": 380
+      },
+      "created_batch_id": "R1-2025-03-10",
+      "created_batch_index": 1
+    }
+  },
+  "exchange_orders": {
+    "EX-8": {
+      "exchange_id": "EX-8",
+      "effective_seq": 8,
+      "scope_id": "S-PARK",
+      "start_day": "2025-03-03",
+      "end_day": "2025-03-05",
+      "interval": [
+        "2025-03-03",
+        "2025-03-05"
+      ],
+      "old_line_ids": [
+        "BL-A",
+        "BL-B"
+      ],
+      "new_line_ids": [
+        "N8-A",
+        "N8-B"
+      ],
+      "new_lines": [
+        {
+          "line_id": "N8-A",
+          "scope_id": "S-PARK",
+          "start_day": "2025-03-03",
+          "end_day": "2025-03-04",
+          "amount_cents": 333,
+          "is_energy": true,
+          "fee_type": null,
+          "apportionment": {
+            "2025-03-03": 333
+          }
+        },
+        {
+          "line_id": "N8-B",
+          "scope_id": "S-PARK",
+          "start_day": "2025-03-04",
+          "end_day": "2025-03-05",
+          "amount_cents": 380,
+          "is_energy": true,
+          "fee_type": null,
+          "apportionment": {
+            "2025-03-04": 380
+          }
+        }
+      ],
+      "old_line_records": [
+        {
+          "line_id": "BL-A",
+          "in_ledger": true,
+          "kind": "original",
+          "scope_id": "S-PARK",
+          "start_day": "2025-03-01",
+          "end_day": "2025-03-04",
+          "amount_cents": 600,
+          "fee_type": "active_energy",
+          "source_exchange_id": null,
+          "bill_id": null,
+          "apportionment": {
+            "2025-03-01": 100,
+            "2025-03-02": 200,
+            "2025-03-03": 300
+          }
+        },
+        {
+          "line_id": "BL-B",
+          "in_ledger": true,
+          "kind": "original",
+          "scope_id": "S-PARK",
+          "start_day": "2025-03-04",
+          "end_day": "2025-03-06",
+          "amount_cents": 900,
+          "fee_type": "active_energy",
+          "source_exchange_id": null,
+          "bill_id": null,
+          "apportionment": {
+            "2025-03-04": 400,
+            "2025-03-05": 500
+          }
+        }
+      ],
+      "new_line_records": [
+        {
+          "line_id": "N8-A",
+          "kind": "new",
+          "scope_id": "S-PARK",
+          "start_day": "2025-03-03",
+          "end_day": "2025-03-04",
+          "amount_cents": 333,
+          "fee_type": null,
+          "source_exchange_id": "EX-8",
+          "apportionment": {
+            "2025-03-03": 333
+          },
+          "created_batch_id": "R1-2025-03-10",
+          "created_batch_index": 1
+        },
+        {
+          "line_id": "N8-B",
+          "kind": "new",
+          "scope_id": "S-PARK",
+          "start_day": "2025-03-04",
+          "end_day": "2025-03-05",
+          "amount_cents": 380,
+          "fee_type": null,
+          "source_exchange_id": "EX-8",
+          "apportionment": {
+            "2025-03-04": 380
+          },
+          "created_batch_id": "R1-2025-03-10",
+          "created_batch_index": 1
+        }
+      ],
+      "content_hash": "190a940419d316908bc14a11ae47198255e8835ce43cf614c919c47d453b0cae",
+      "status": "effective",
+      "adjudication_status": "effective",
+      "effective": true,
+      "pending": false,
+      "status_label": "已生效",
+      "adjudication": {
+        "status": "effective",
+        "reasons": [],
+        "adjudicated_in_batch": "R1-2025-03-10",
+        "adjudicated_at": "2025-03-10T09:30:00Z"
+      },
+      "received_batch_id": "R1-2025-03-10",
+      "received_batch_index": 1,
+      "received_at": "2025-03-10T09:30:00Z"
+    }
+  },
+  "exchange_order_ids": [
+    "EX-8"
+  ],
+  "normalized_snapshot": false,
+  "changed_adjudications": [],
+  "readjudications": [],
+  "reaffirmed_adjudications": [],
+  "propagation_edges": [],
+  "new_order_rulings": [
+    {
+      "exchange_id": "EX-8",
+      "effective_seq": 8,
+      "scope_id": "S-PARK",
+      "status": "effective",
+      "effective": true,
+      "status_label": "已生效",
+      "reasons": []
+    }
+  ],
+  "considered_order_ids": [
+    "EX-8"
+  ],
+  "trigger_order_ids": [
+    "EX-8"
+  ],
+  "postings": [
+    {
+      "scope_id": "S-PARK",
+      "billing_day": "2025-03-03",
+      "before_line_id": "BL-A",
+      "after_line_id": "N8-A",
+      "old_line_id": "BL-A",
+      "new_line_id": "N8-A",
+      "before_apportioned_amount_cents": 300,
+      "after_apportioned_amount_cents": 333,
+      "system_amount_cents": 300,
+      "before_daily_difference_cents": 0,
+      "after_daily_difference_cents": 33,
+      "delta_cents": 33,
+      "makeup_delta_cents": 33,
+      "entry_type": "supplementary",
+      "entry_type_label": "补记"
+    },
+    {
+      "scope_id": "S-PARK",
+      "billing_day": "2025-03-04",
+      "before_line_id": "BL-B",
+      "after_line_id": "N8-B",
+      "old_line_id": "BL-B",
+      "new_line_id": "N8-B",
+      "before_apportioned_amount_cents": 400,
+      "after_apportioned_amount_cents": 380,
+      "system_amount_cents": 400,
+      "before_daily_difference_cents": 0,
+      "after_daily_difference_cents": -20,
+      "delta_cents": -20,
+      "makeup_delta_cents": -20,
+      "entry_type": "reversal",
+      "entry_type_label": "冲回"
+    }
+  ],
+  "daily_difference_postings": [
+    {
+      "scope_id": "S-PARK",
+      "billing_day": "2025-03-03",
+      "before_line_id": "BL-A",
+      "after_line_id": "N8-A",
+      "old_line_id": "BL-A",
+      "new_line_id": "N8-A",
+      "before_apportioned_amount_cents": 300,
+      "after_apportioned_amount_cents": 333,
+      "system_amount_cents": 300,
+      "before_daily_difference_cents": 0,
+      "after_daily_difference_cents": 33,
+      "delta_cents": 33,
+      "makeup_delta_cents": 33,
+      "entry_type": "supplementary",
+      "entry_type_label": "补记"
+    },
+    {
+      "scope_id": "S-PARK",
+      "billing_day": "2025-03-04",
+      "before_line_id": "BL-B",
+      "after_line_id": "N8-B",
+      "old_line_id": "BL-B",
+      "new_line_id": "N8-B",
+      "before_apportioned_amount_cents": 400,
+      "after_apportioned_amount_cents": 380,
+      "system_amount_cents": 400,
+      "before_daily_difference_cents": 0,
+      "after_daily_difference_cents": -20,
+      "delta_cents": -20,
+      "makeup_delta_cents": -20,
+      "entry_type": "reversal",
+      "entry_type_label": "冲回"
+    }
+  ],
+  "makeup_entries": [
+    {
+      "scope_id": "S-PARK",
+      "billing_day": "2025-03-03",
+      "before_line_id": "BL-A",
+      "after_line_id": "N8-A",
+      "old_line_id": "BL-A",
+      "new_line_id": "N8-A",
+      "before_apportioned_amount_cents": 300,
+      "after_apportioned_amount_cents": 333,
+      "system_amount_cents": 300,
+      "before_daily_difference_cents": 0,
+      "after_daily_difference_cents": 33,
+      "delta_cents": 33,
+      "makeup_delta_cents": 33,
+      "entry_type": "supplementary",
+      "entry_type_label": "补记"
+    },
+    {
+      "scope_id": "S-PARK",
+      "billing_day": "2025-03-04",
+      "before_line_id": "BL-B",
+      "after_line_id": "N8-B",
+      "old_line_id": "BL-B",
+      "new_line_id": "N8-B",
+      "before_apportioned_amount_cents": 400,
+      "after_apportioned_amount_cents": 380,
+      "system_amount_cents": 400,
+      "before_daily_difference_cents": 0,
+      "after_daily_difference_cents": -20,
+      "delta_cents": -20,
+      "makeup_delta_cents": -20,
+      "entry_type": "reversal",
+      "entry_type_label": "冲回"
+    }
+  ],
+  "daily_changes": [
+    {
+      "scope_id": "S-PARK",
+      "billing_day": "2025-03-03",
+      "before_line_id": "BL-A",
+      "after_line_id": "N8-A",
+      "old_line_id": "BL-A",
+      "new_line_id": "N8-A",
+      "before_apportioned_amount_cents": 300,
+      "after_apportioned_amount_cents": 333,
+      "system_amount_cents": 300,
+      "before_daily_difference_cents": 0,
+      "after_daily_difference_cents": 33,
+      "delta_cents": 33,
+      "makeup_delta_cents": 33,
+      "entry_type": "supplementary",
+      "entry_type_label": "补记"
+    },
+    {
+      "scope_id": "S-PARK",
+      "billing_day": "2025-03-04",
+      "before_line_id": "BL-B",
+      "after_line_id": "N8-B",
+      "old_line_id": "BL-B",
+      "new_line_id": "N8-B",
+      "before_apportioned_amount_cents": 400,
+      "after_apportioned_amount_cents": 380,
+      "system_amount_cents": 400,
+      "before_daily_difference_cents": 0,
+      "after_daily_difference_cents": -20,
+      "delta_cents": -20,
+      "makeup_delta_cents": -20,
+      "entry_type": "reversal",
+      "entry_type_label": "冲回"
+    }
+  ],
+  "totals": {
+    "day_count": 5,
+    "apportioned_amount_cents": 1513,
+    "system_amount_cents": 1500,
+    "current_daily_difference_cents": 13,
+    "opening_billed_cents": 1500,
+    "opening_daily_difference_cents": 0,
+    "batch_posting_delta_cents": 13,
+    "supplementary_cents": 33,
+    "reversal_cents": 20,
+    "posting_count": 2,
+    "effective_order_count": 1,
+    "pending_order_count": 0
+  },
+  "settlement_basis": {
+    "S-PARK": {
+      "2025-03-01": {
+        "scope_id": "S-PARK",
+        "billing_day": "2025-03-01",
+        "openable": true,
+        "block_reasons": [],
+        "system_amount_yuan_fraction": "1",
+        "system_amount_exact_cents_fraction": "100",
+        "system_amount_cents_rounded": 100,
+        "control_keys": [
+          {
+            "scope_id": "S-PARK",
+            "billing_day": "2025-03-01",
+            "rate_id": "energy-flat"
+          }
+        ],
+        "component_ids": [
+          "R001"
+        ],
+        "segment_ids": [
+          "SEG-M-L1-001"
+        ],
+        "settlement_evidence": [
+          {
+            "atom_id": "A00001",
+            "component_id": "R001",
+            "segment_id": "SEG-M-L1-001",
+            "rate_id": "energy-flat",
+            "allocated_wh": 100,
+            "unit_price": "1/100",
+            "amount_fraction": "1",
+            "rounding": "exact_integer",
+            "meter_id": "M-L1",
+            "binding_id": "b-l1",
+            "tariff_version": "tv-energy-1"
+          }
+        ]
+      },
+      "2025-03-02": {
+        "scope_id": "S-PARK",
+        "billing_day": "2025-03-02",
+        "openable": true,
+        "block_reasons": [],
+        "system_amount_yuan_fraction": "2",
+        "system_amount_exact_cents_fraction": "200",
+        "system_amount_cents_rounded": 200,
+        "control_keys": [
+          {
+            "scope_id": "S-PARK",
+            "billing_day": "2025-03-02",
+            "rate_id": "energy-flat"
+          }
+        ],
+        "component_ids": [
+          "R002"
+        ],
+        "segment_ids": [
+          "SEG-M-L1-002"
+        ],
+        "settlement_evidence": [
+          {
+            "atom_id": "A00002",
+            "component_id": "R002",
+            "segment_id": "SEG-M-L1-002",
+            "rate_id": "energy-flat",
+            "allocated_wh": 200,
+            "unit_price": "1/100",
+            "amount_fraction": "2",
+            "rounding": "exact_integer",
+            "meter_id": "M-L1",
+            "binding_id": "b-l1",
+            "tariff_version": "tv-energy-1"
+          }
+        ]
+      },
+      "2025-03-03": {
+        "scope_id": "S-PARK",
+        "billing_day": "2025-03-03",
+        "openable": true,
+        "block_reasons": [],
+        "system_amount_yuan_fraction": "3",
+        "system_amount_exact_cents_fraction": "300",
+        "system_amount_cents_rounded": 300,
+        "control_keys": [
+          {
+            "scope_id": "S-PARK",
+            "billing_day": "2025-03-03",
+            "rate_id": "energy-flat"
+          }
+        ],
+        "component_ids": [
+          "R003"
+        ],
+        "segment_ids": [
+          "SEG-M-L1-003"
+        ],
+        "settlement_evidence": [
+          {
+            "atom_id": "A00003",
+            "component_id": "R003",
+            "segment_id": "SEG-M-L1-003",
+            "rate_id": "energy-flat",
+            "allocated_wh": 300,
+            "unit_price": "1/100",
+            "amount_fraction": "3",
+            "rounding": "exact_integer",
+            "meter_id": "M-L1",
+            "binding_id": "b-l1",
+            "tariff_version": "tv-energy-1"
+          }
+        ]
+      },
+      "2025-03-04": {
+        "scope_id": "S-PARK",
+        "billing_day": "2025-03-04",
+        "openable": true,
+        "block_reasons": [],
+        "system_amount_yuan_fraction": "4",
+        "system_amount_exact_cents_fraction": "400",
+        "system_amount_cents_rounded": 400,
+        "control_keys": [
+          {
+            "scope_id": "S-PARK",
+            "billing_day": "2025-03-04",
+            "rate_id": "energy-flat"
+          }
+        ],
+        "component_ids": [
+          "R004"
+        ],
+        "segment_ids": [
+          "SEG-M-L1-004"
+        ],
+        "settlement_evidence": [
+          {
+            "atom_id": "A00004",
+            "component_id": "R004",
+            "segment_id": "SEG-M-L1-004",
+            "rate_id": "energy-flat",
+            "allocated_wh": 400,
+            "unit_price": "1/100",
+            "amount_fraction": "4",
+            "rounding": "exact_integer",
+            "meter_id": "M-L1",
+            "binding_id": "b-l1",
+            "tariff_version": "tv-energy-1"
+          }
+        ]
+      },
+      "2025-03-05": {
+        "scope_id": "S-PARK",
+        "billing_day": "2025-03-05",
+        "openable": true,
+        "block_reasons": [],
+        "system_amount_yuan_fraction": "5",
+        "system_amount_exact_cents_fraction": "500",
+        "system_amount_cents_rounded": 500,
+        "control_keys": [
+          {
+            "scope_id": "S-PARK",
+            "billing_day": "2025-03-05",
+            "rate_id": "energy-flat"
+          }
+        ],
+        "component_ids": [
+          "R005"
+        ],
+        "segment_ids": [
+          "SEG-M-L1-005"
+        ],
+        "settlement_evidence": [
+          {
+            "atom_id": "A00005",
+            "component_id": "R005",
+            "segment_id": "SEG-M-L1-005",
+            "rate_id": "energy-flat",
+            "allocated_wh": 500,
+            "unit_price": "1/100",
+            "amount_fraction": "5",
+            "rounding": "exact_integer",
+            "meter_id": "M-L1",
+            "binding_id": "b-l1",
+            "tariff_version": "tv-energy-1"
+          }
+        ]
+      }
+    }
+  },
+  "settlement_audit": {
+    "money_scale": 100,
+    "overall_status": "settled",
+    "rule_version": {
+      "input_rule_version": "ledger-example-rules-1",
+      "engine_rule_version": "integer-slice-flow-1.0.0",
+      "calendar_rule_version": null
+    },
+    "input_audit": {
+      "path": null,
+      "sha256": null,
+      "original_readings": [
+        {
+          "reading_id": "rd-0",
+          "meter_id": "M-L1",
+          "ts": "2025-03-01T00:00:00+00:00",
+          "value_wh": 0
+        },
+        {
+          "reading_id": "rd-1",
+          "meter_id": "M-L1",
+          "ts": "2025-03-02T00:00:00+00:00",
+          "value_wh": 100
+        },
+        {
+          "reading_id": "rd-2",
+          "meter_id": "M-L1",
+          "ts": "2025-03-03T00:00:00+00:00",
+          "value_wh": 300
+        },
+        {
+          "reading_id": "rd-3",
+          "meter_id": "M-L1",
+          "ts": "2025-03-04T00:00:00+00:00",
+          "value_wh": 600
+        },
+        {
+          "reading_id": "rd-4",
+          "meter_id": "M-L1",
+          "ts": "2025-03-05T00:00:00+00:00",
+          "value_wh": 1000
+        },
+        {
+          "reading_id": "rd-5",
+          "meter_id": "M-L1",
+          "ts": "2025-03-06T00:00:00+00:00",
+          "value_wh": 1500
+        }
+      ],
+      "exchange_vouchers": [],
+      "excluded_readings": []
+    }
+  },
+  "bill_attribution": [
+    {
+      "scope_id": "S-PARK",
+      "billing_day": "2025-03-01",
+      "line_id": "BL-A",
+      "line_kind": "original",
+      "source_exchange_id": null
+    },
+    {
+      "scope_id": "S-PARK",
+      "billing_day": "2025-03-02",
+      "line_id": "BL-A",
+      "line_kind": "original",
+      "source_exchange_id": null
+    },
+    {
+      "scope_id": "S-PARK",
+      "billing_day": "2025-03-03",
+      "line_id": "N8-A",
+      "line_kind": "new",
+      "source_exchange_id": "EX-8"
+    },
+    {
+      "scope_id": "S-PARK",
+      "billing_day": "2025-03-04",
+      "line_id": "N8-B",
+      "line_kind": "new",
+      "source_exchange_id": "EX-8"
+    },
+    {
+      "scope_id": "S-PARK",
+      "billing_day": "2025-03-05",
+      "line_id": "BL-B",
+      "line_kind": "original",
+      "source_exchange_id": null
+    }
+  ],
+  "daily_apportionments": [
+    {
+      "scope_id": "S-PARK",
+      "billing_day": "2025-03-01",
+      "line_id": "BL-A",
+      "line_kind": "original",
+      "apportioned_amount_cents": 100,
+      "system_amount_cents": 100,
+      "daily_difference_cents": 0,
+      "basis": {
+        "openable": true,
+        "system_amount_yuan_fraction": "1",
+        "system_amount_exact_cents_fraction": "100",
+        "system_amount_cents_rounded": 100,
+        "control_keys": [
+          {
+            "scope_id": "S-PARK",
+            "billing_day": "2025-03-01",
+            "rate_id": "energy-flat"
+          }
+        ],
+        "component_ids": [
+          "R001"
+        ],
+        "segment_ids": [
+          "SEG-M-L1-001"
+        ],
+        "settlement_evidence": [
+          {
+            "atom_id": "A00001",
+            "component_id": "R001",
+            "segment_id": "SEG-M-L1-001",
+            "rate_id": "energy-flat",
+            "allocated_wh": 100,
+            "unit_price": "1/100",
+            "amount_fraction": "1",
+            "rounding": "exact_integer",
+            "meter_id": "M-L1",
+            "binding_id": "b-l1",
+            "tariff_version": "tv-energy-1"
+          }
+        ]
+      }
+    },
+    {
+      "scope_id": "S-PARK",
+      "billing_day": "2025-03-02",
+      "line_id": "BL-A",
+      "line_kind": "original",
+      "apportioned_amount_cents": 200,
+      "system_amount_cents": 200,
+      "daily_difference_cents": 0,
+      "basis": {
+        "openable": true,
+        "system_amount_yuan_fraction": "2",
+        "system_amount_exact_cents_fraction": "200",
+        "system_amount_cents_rounded": 200,
+        "control_keys": [
+          {
+            "scope_id": "S-PARK",
+            "billing_day": "2025-03-02",
+            "rate_id": "energy-flat"
+          }
+        ],
+        "component_ids": [
+          "R002"
+        ],
+        "segment_ids": [
+          "SEG-M-L1-002"
+        ],
+        "settlement_evidence": [
+          {
+            "atom_id": "A00002",
+            "component_id": "R002",
+            "segment_id": "SEG-M-L1-002",
+            "rate_id": "energy-flat",
+            "allocated_wh": 200,
+            "unit_price": "1/100",
+            "amount_fraction": "2",
+            "rounding": "exact_integer",
+            "meter_id": "M-L1",
+            "binding_id": "b-l1",
+            "tariff_version": "tv-energy-1"
+          }
+        ]
+      }
+    },
+    {
+      "scope_id": "S-PARK",
+      "billing_day": "2025-03-03",
+      "line_id": "N8-A",
+      "line_kind": "new",
+      "apportioned_amount_cents": 333,
+      "system_amount_cents": 300,
+      "daily_difference_cents": 33,
+      "basis": {
+        "openable": true,
+        "system_amount_yuan_fraction": "3",
+        "system_amount_exact_cents_fraction": "300",
+        "system_amount_cents_rounded": 300,
+        "control_keys": [
+          {
+            "scope_id": "S-PARK",
+            "billing_day": "2025-03-03",
+            "rate_id": "energy-flat"
+          }
+        ],
+        "component_ids": [
+          "R003"
+        ],
+        "segment_ids": [
+          "SEG-M-L1-003"
+        ],
+        "settlement_evidence": [
+          {
+            "atom_id": "A00003",
+            "component_id": "R003",
+            "segment_id": "SEG-M-L1-003",
+            "rate_id": "energy-flat",
+            "allocated_wh": 300,
+            "unit_price": "1/100",
+            "amount_fraction": "3",
+            "rounding": "exact_integer",
+            "meter_id": "M-L1",
+            "binding_id": "b-l1",
+            "tariff_version": "tv-energy-1"
+          }
+        ]
+      }
+    },
+    {
+      "scope_id": "S-PARK",
+      "billing_day": "2025-03-04",
+      "line_id": "N8-B",
+      "line_kind": "new",
+      "apportioned_amount_cents": 380,
+      "system_amount_cents": 400,
+      "daily_difference_cents": -20,
+      "basis": {
+        "openable": true,
+        "system_amount_yuan_fraction": "4",
+        "system_amount_exact_cents_fraction": "400",
+        "system_amount_cents_rounded": 400,
+        "control_keys": [
+          {
+            "scope_id": "S-PARK",
+            "billing_day": "2025-03-04",
+            "rate_id": "energy-flat"
+          }
+        ],
+        "component_ids": [
+          "R004"
+        ],
+        "segment_ids": [
+          "SEG-M-L1-004"
+        ],
+        "settlement_evidence": [
+          {
+            "atom_id": "A00004",
+            "component_id": "R004",
+            "segment_id": "SEG-M-L1-004",
+            "rate_id": "energy-flat",
+            "allocated_wh": 400,
+            "unit_price": "1/100",
+            "amount_fraction": "4",
+            "rounding": "exact_integer",
+            "meter_id": "M-L1",
+            "binding_id": "b-l1",
+            "tariff_version": "tv-energy-1"
+          }
+        ]
+      }
+    },
+    {
+      "scope_id": "S-PARK",
+      "billing_day": "2025-03-05",
+      "line_id": "BL-B",
+      "line_kind": "original",
+      "apportioned_amount_cents": 500,
+      "system_amount_cents": 500,
+      "daily_difference_cents": 0,
+      "basis": {
+        "openable": true,
+        "system_amount_yuan_fraction": "5",
+        "system_amount_exact_cents_fraction": "500",
+        "system_amount_cents_rounded": 500,
+        "control_keys": [
+          {
+            "scope_id": "S-PARK",
+            "billing_day": "2025-03-05",
+            "rate_id": "energy-flat"
+          }
+        ],
+        "component_ids": [
+          "R005"
+        ],
+        "segment_ids": [
+          "SEG-M-L1-005"
+        ],
+        "settlement_evidence": [
+          {
+            "atom_id": "A00005",
+            "component_id": "R005",
+            "segment_id": "SEG-M-L1-005",
+            "rate_id": "energy-flat",
+            "allocated_wh": 500,
+            "unit_price": "1/100",
+            "amount_fraction": "5",
+            "rounding": "exact_integer",
+            "meter_id": "M-L1",
+            "binding_id": "b-l1",
+            "tariff_version": "tv-energy-1"
+          }
+        ]
+      }
+    }
+  ],
+  "daily_differences": [
+    {
+      "scope_id": "S-PARK",
+      "billing_day": "2025-03-01",
+      "daily_difference_cents": 0,
+      "line_id": "BL-A"
+    },
+    {
+      "scope_id": "S-PARK",
+      "billing_day": "2025-03-02",
+      "daily_difference_cents": 0,
+      "line_id": "BL-A"
+    },
+    {
+      "scope_id": "S-PARK",
+      "billing_day": "2025-03-03",
+      "daily_difference_cents": 33,
+      "line_id": "N8-A"
+    },
+    {
+      "scope_id": "S-PARK",
+      "billing_day": "2025-03-04",
+      "daily_difference_cents": -20,
+      "line_id": "N8-B"
+    },
+    {
+      "scope_id": "S-PARK",
+      "billing_day": "2025-03-05",
+      "daily_difference_cents": 0,
+      "line_id": "BL-B"
+    }
+  ],
+  "status": "accepted",
+  "received_order_ids": [
+    "EX-8"
+  ],
+  "new_order_ids": [
+    "EX-8"
+  ],
+  "idempotent_order_ids": [],
+  "affected_order_ids": [
+    "EX-8"
+  ],
+  "changed_adjudication_ids": [],
+  "reaffirmed_adjudication_ids": [],
+  "snapshot": {
+    "report_type": "makeup_ledger_batch_result",
+    "ledger_id": "PARK-ENERGY-2025-03",
+    "rule_version": "makeup-difference-ledger-1.0.0",
+    "batch_id": "R1-2025-03-10",
+    "batch_index": 1,
+    "received_at": "2025-03-10T09:30:00Z",
+    "note": null,
+    "effective_attribution": [
+      {
+        "scope_id": "S-PARK",
+        "billing_day": "2025-03-01",
+        "line_id": "BL-A",
+        "line_kind": "original",
+        "source_exchange_id": null
+      },
+      {
+        "scope_id": "S-PARK",
+        "billing_day": "2025-03-02",
+        "line_id": "BL-A",
+        "line_kind": "original",
+        "source_exchange_id": null
+      },
+      {
+        "scope_id": "S-PARK",
+        "billing_day": "2025-03-03",
+        "line_id": "N8-A",
+        "line_kind": "new",
+        "source_exchange_id": "EX-8"
+      },
+      {
+        "scope_id": "S-PARK",
+        "billing_day": "2025-03-04",
+        "line_id": "N8-B",
+        "line_kind": "new",
+        "source_exchange_id": "EX-8"
+      },
+      {
+        "scope_id": "S-PARK",
+        "billing_day": "2025-03-05",
+        "line_id": "BL-B",
+        "line_kind": "original",
+        "source_exchange_id": null
+      }
+    ],
+    "daily_ledger": [
+      {
+        "scope_id": "S-PARK",
+        "billing_day": "2025-03-01",
+        "line_id": "BL-A",
+        "line_kind": "original",
+        "apportioned_amount_cents": 100,
+        "system_amount_cents": 100,
+        "daily_difference_cents": 0,
+        "basis": {
+          "openable": true,
+          "system_amount_yuan_fraction": "1",
+          "system_amount_exact_cents_fraction": "100",
+          "system_amount_cents_rounded": 100,
+          "control_keys": [
+            {
+              "scope_id": "S-PARK",
+              "billing_day": "2025-03-01",
+              "rate_id": "energy-flat"
+            }
+          ],
+          "component_ids": [
+            "R001"
+          ],
+          "segment_ids": [
+            "SEG-M-L1-001"
+          ],
+          "settlement_evidence": [
+            {
+              "atom_id": "A00001",
+              "component_id": "R001",
+              "segment_id": "SEG-M-L1-001",
+              "rate_id": "energy-flat",
+              "allocated_wh": 100,
+              "unit_price": "1/100",
+              "amount_fraction": "1",
+              "rounding": "exact_integer",
+              "meter_id": "M-L1",
+              "binding_id": "b-l1",
+              "tariff_version": "tv-energy-1"
+            }
+          ]
+        }
+      },
+      {
+        "scope_id": "S-PARK",
+        "billing_day": "2025-03-02",
+        "line_id": "BL-A",
+        "line_kind": "original",
+        "apportioned_amount_cents": 200,
+        "system_amount_cents": 200,
+        "daily_difference_cents": 0,
+        "basis": {
+          "openable": true,
+          "system_amount_yuan_fraction": "2",
+          "system_amount_exact_cents_fraction": "200",
+          "system_amount_cents_rounded": 200,
+          "control_keys": [
+            {
+              "scope_id": "S-PARK",
+              "billing_day": "2025-03-02",
+              "rate_id": "energy-flat"
+            }
+          ],
+          "component_ids": [
+            "R002"
+          ],
+          "segment_ids": [
+            "SEG-M-L1-002"
+          ],
+          "settlement_evidence": [
+            {
+              "atom_id": "A00002",
+              "component_id": "R002",
+              "segment_id": "SEG-M-L1-002",
+              "rate_id": "energy-flat",
+              "allocated_wh": 200,
+              "unit_price": "1/100",
+              "amount_fraction": "2",
+              "rounding": "exact_integer",
+              "meter_id": "M-L1",
+              "binding_id": "b-l1",
+              "tariff_version": "tv-energy-1"
+            }
+          ]
+        }
+      },
+      {
+        "scope_id": "S-PARK",
+        "billing_day": "2025-03-03",
+        "line_id": "N8-A",
+        "line_kind": "new",
+        "apportioned_amount_cents": 333,
+        "system_amount_cents": 300,
+        "daily_difference_cents": 33,
+        "basis": {
+          "openable": true,
+          "system_amount_yuan_fraction": "3",
+          "system_amount_exact_cents_fraction": "300",
+          "system_amount_cents_rounded": 300,
+          "control_keys": [
+            {
+              "scope_id": "S-PARK",
+              "billing_day": "2025-03-03",
+              "rate_id": "energy-flat"
+            }
+          ],
+          "component_ids": [
+            "R003"
+          ],
+          "segment_ids": [
+            "SEG-M-L1-003"
+          ],
+          "settlement_evidence": [
+            {
+              "atom_id": "A00003",
+              "component_id": "R003",
+              "segment_id": "SEG-M-L1-003",
+              "rate_id": "energy-flat",
+              "allocated_wh": 300,
+              "unit_price": "1/100",
+              "amount_fraction": "3",
+              "rounding": "exact_integer",
+              "meter_id": "M-L1",
+              "binding_id": "b-l1",
+              "tariff_version": "tv-energy-1"
+            }
+          ]
+        }
+      },
+      {
+        "scope_id": "S-PARK",
+        "billing_day": "2025-03-04",
+        "line_id": "N8-B",
+        "line_kind": "new",
+        "apportioned_amount_cents": 380,
+        "system_amount_cents": 400,
+        "daily_difference_cents": -20,
+        "basis": {
+          "openable": true,
+          "system_amount_yuan_fraction": "4",
+          "system_amount_exact_cents_fraction": "400",
+          "system_amount_cents_rounded": 400,
+          "control_keys": [
+            {
+              "scope_id": "S-PARK",
+              "billing_day": "2025-03-04",
+              "rate_id": "energy-flat"
+            }
+          ],
+          "component_ids": [
+            "R004"
+          ],
+          "segment_ids": [
+            "SEG-M-L1-004"
+          ],
+          "settlement_evidence": [
+            {
+              "atom_id": "A00004",
+              "component_id": "R004",
+              "segment_id": "SEG-M-L1-004",
+              "rate_id": "energy-flat",
+              "allocated_wh": 400,
+              "unit_price": "1/100",
+              "amount_fraction": "4",
+              "rounding": "exact_integer",
+              "meter_id": "M-L1",
+              "binding_id": "b-l1",
+              "tariff_version": "tv-energy-1"
+            }
+          ]
+        }
+      },
+      {
+        "scope_id": "S-PARK",
+        "billing_day": "2025-03-05",
+        "line_id": "BL-B",
+        "line_kind": "original",
+        "apportioned_amount_cents": 500,
+        "system_amount_cents": 500,
+        "daily_difference_cents": 0,
+        "basis": {
+          "openable": true,
+          "system_amount_yuan_fraction": "5",
+          "system_amount_exact_cents_fraction": "500",
+          "system_amount_cents_rounded": 500,
+          "control_keys": [
+            {
+              "scope_id": "S-PARK",
+              "billing_day": "2025-03-05",
+              "rate_id": "energy-flat"
+            }
+          ],
+          "component_ids": [
+            "R005"
+          ],
+          "segment_ids": [
+            "SEG-M-L1-005"
+          ],
+          "settlement_evidence": [
+            {
+              "atom_id": "A00005",
+              "component_id": "R005",
+              "segment_id": "SEG-M-L1-005",
+              "rate_id": "energy-flat",
+              "allocated_wh": 500,
+              "unit_price": "1/100",
+              "amount_fraction": "5",
+              "rounding": "exact_integer",
+              "meter_id": "M-L1",
+              "binding_id": "b-l1",
+              "tariff_version": "tv-energy-1"
+            }
+          ]
+        }
+      }
+    ],
+    "line_catalog": {
+      "BL-A": {
+        "line_id": "BL-A",
+        "kind": "original",
+        "scope_id": "S-PARK",
+        "start_day": "2025-03-01",
+        "end_day": "2025-03-04",
+        "amount_cents": 600,
+        "fee_type": "active_energy",
+        "source_exchange_id": null,
+        "bill_id": null,
+        "apportionment": {
+          "2025-03-01": 100,
+          "2025-03-02": 200,
+          "2025-03-03": 300
+        }
+      },
+      "BL-B": {
+        "line_id": "BL-B",
+        "kind": "original",
+        "scope_id": "S-PARK",
+        "start_day": "2025-03-04",
+        "end_day": "2025-03-06",
+        "amount_cents": 900,
+        "fee_type": "active_energy",
+        "source_exchange_id": null,
+        "bill_id": null,
+        "apportionment": {
+          "2025-03-04": 400,
+          "2025-03-05": 500
+        }
+      },
+      "N8-A": {
+        "line_id": "N8-A",
+        "kind": "new",
+        "scope_id": "S-PARK",
+        "start_day": "2025-03-03",
+        "end_day": "2025-03-04",
+        "amount_cents": 333,
+        "fee_type": null,
+        "source_exchange_id": "EX-8",
+        "apportionment": {
+          "2025-03-03": 333
+        },
+        "created_batch_id": "R1-2025-03-10",
+        "created_batch_index": 1
+      },
+      "N8-B": {
+        "line_id": "N8-B",
+        "kind": "new",
+        "scope_id": "S-PARK",
+        "start_day": "2025-03-04",
+        "end_day": "2025-03-05",
+        "amount_cents": 380,
+        "fee_type": null,
+        "source_exchange_id": "EX-8",
+        "apportionment": {
+          "2025-03-04": 380
+        },
+        "created_batch_id": "R1-2025-03-10",
+        "created_batch_index": 1
+      }
+    },
+    "bill_lines": {
+      "BL-A": {
+        "line_id": "BL-A",
+        "kind": "original",
+        "scope_id": "S-PARK",
+        "start_day": "2025-03-01",
+        "end_day": "2025-03-04",
+        "amount_cents": 600,
+        "fee_type": "active_energy",
+        "source_exchange_id": null,
+        "bill_id": null,
+        "apportionment": {
+          "2025-03-01": 100,
+          "2025-03-02": 200,
+          "2025-03-03": 300
+        }
+      },
+      "BL-B": {
+        "line_id": "BL-B",
+        "kind": "original",
+        "scope_id": "S-PARK",
+        "start_day": "2025-03-04",
+        "end_day": "2025-03-06",
+        "amount_cents": 900,
+        "fee_type": "active_energy",
+        "source_exchange_id": null,
+        "bill_id": null,
+        "apportionment": {
+          "2025-03-04": 400,
+          "2025-03-05": 500
+        }
+      },
+      "N8-A": {
+        "line_id": "N8-A",
+        "kind": "new",
+        "scope_id": "S-PARK",
+        "start_day": "2025-03-03",
+        "end_day": "2025-03-04",
+        "amount_cents": 333,
+        "fee_type": null,
+        "source_exchange_id": "EX-8",
+        "apportionment": {
+          "2025-03-03": 333
+        },
+        "created_batch_id": "R1-2025-03-10",
+        "created_batch_index": 1
+      },
+      "N8-B": {
+        "line_id": "N8-B",
+        "kind": "new",
+        "scope_id": "S-PARK",
+        "start_day": "2025-03-04",
+        "end_day": "2025-03-05",
+        "amount_cents": 380,
+        "fee_type": null,
+        "source_exchange_id": "EX-8",
+        "apportionment": {
+          "2025-03-04": 380
+        },
+        "created_batch_id": "R1-2025-03-10",
+        "created_batch_index": 1
+      }
+    },
+    "exchange_orders": {
+      "EX-8": {
+        "exchange_id": "EX-8",
+        "effective_seq": 8,
+        "scope_id": "S-PARK",
+        "start_day": "2025-03-03",
+        "end_day": "2025-03-05",
+        "interval": [
+          "2025-03-03",
+          "2025-03-05"
+        ],
+        "old_line_ids": [
+          "BL-A",
+          "BL-B"
+        ],
+        "new_line_ids": [
+          "N8-A",
+          "N8-B"
+        ],
+        "new_lines": [
+          {
+            "line_id": "N8-A",
+            "scope_id": "S-PARK",
+            "start_day": "2025-03-03",
+            "end_day": "2025-03-04",
+            "amount_cents": 333,
+            "is_energy": true,
+            "fee_type": null,
+            "apportionment": {
+              "2025-03-03": 333
+            }
+          },
+          {
+            "line_id": "N8-B",
+            "scope_id": "S-PARK",
+            "start_day": "2025-03-04",
+            "end_day": "2025-03-05",
+            "amount_cents": 380,
+            "is_energy": true,
+            "fee_type": null,
+            "apportionment": {
+              "2025-03-04": 380
+            }
+          }
+        ],
+        "old_line_records": [
+          {
+            "line_id": "BL-A",
+            "in_ledger": true,
+            "kind": "original",
+            "scope_id": "S-PARK",
+            "start_day": "2025-03-01",
+            "end_day": "2025-03-04",
+            "amount_cents": 600,
+            "fee_type": "active_energy",
+            "source_exchange_id": null,
+            "bill_id": null,
+            "apportionment": {
+              "2025-03-01": 100,
+              "2025-03-02": 200,
+              "2025-03-03": 300
+            }
+          },
+          {
+            "line_id": "BL-B",
+            "in_ledger": true,
+            "kind": "original",
+            "scope_id": "S-PARK",
+            "start_day": "2025-03-04",
+            "end_day": "2025-03-06",
+            "amount_cents": 900,
+            "fee_type": "active_energy",
+            "source_exchange_id": null,
+            "bill_id": null,
+            "apportionment": {
+              "2025-03-04": 400,
+              "2025-03-05": 500
+            }
+          }
+        ],
+        "new_line_records": [
+          {
+            "line_id": "N8-A",
+            "kind": "new",
+            "scope_id": "S-PARK",
+            "start_day": "2025-03-03",
+            "end_day": "2025-03-04",
+            "amount_cents": 333,
+            "fee_type": null,
+            "source_exchange_id": "EX-8",
+            "apportionment": {
+              "2025-03-03": 333
+            },
+            "created_batch_id": "R1-2025-03-10",
+            "created_batch_index": 1
+          },
+          {
+            "line_id": "N8-B",
+            "kind": "new",
+            "scope_id": "S-PARK",
+            "start_day": "2025-03-04",
+            "end_day": "2025-03-05",
+            "amount_cents": 380,
+            "fee_type": null,
+            "source_exchange_id": "EX-8",
+            "apportionment": {
+              "2025-03-04": 380
+            },
+            "created_batch_id": "R1-2025-03-10",
+            "created_batch_index": 1
+          }
+        ],
+        "content_hash": "190a940419d316908bc14a11ae47198255e8835ce43cf614c919c47d453b0cae",
+        "status": "effective",
+        "adjudication_status": "effective",
+        "effective": true,
+        "pending": false,
+        "status_label": "已生效",
+        "adjudication": {
+          "status": "effective",
+          "reasons": [],
+          "adjudicated_in_batch": "R1-2025-03-10",
+          "adjudicated_at": "2025-03-10T09:30:00Z"
+        },
+        "received_batch_id": "R1-2025-03-10",
+        "received_batch_index": 1,
+        "received_at": "2025-03-10T09:30:00Z"
+      }
+    },
+    "exchange_order_ids": [
+      "EX-8"
+    ],
+    "normalized_snapshot": false,
+    "changed_adjudications": [],
+    "readjudications": [],
+    "reaffirmed_adjudications": [],
+    "propagation_edges": [],
+    "new_order_rulings": [
+      {
+        "exchange_id": "EX-8",
+        "effective_seq": 8,
+        "scope_id": "S-PARK",
+        "status": "effective",
+        "effective": true,
+        "status_label": "已生效",
+        "reasons": []
+      }
+    ],
+    "considered_order_ids": [
+      "EX-8"
+    ],
+    "trigger_order_ids": [
+      "EX-8"
+    ],
+    "postings": [
+      {
+        "scope_id": "S-PARK",
+        "billing_day": "2025-03-03",
+        "before_line_id": "BL-A",
+        "after_line_id": "N8-A",
+        "old_line_id": "BL-A",
+        "new_line_id": "N8-A",
+        "before_apportioned_amount_cents": 300,
+        "after_apportioned_amount_cents": 333,
+        "system_amount_cents": 300,
+        "before_daily_difference_cents": 0,
+        "after_daily_difference_cents": 33,
+        "delta_cents": 33,
+        "makeup_delta_cents": 33,
+        "entry_type": "supplementary",
+        "entry_type_label": "补记"
+      },
+      {
+        "scope_id": "S-PARK",
+        "billing_day": "2025-03-04",
+        "before_line_id": "BL-B",
+        "after_line_id": "N8-B",
+        "old_line_id": "BL-B",
+        "new_line_id": "N8-B",
+        "before_apportioned_amount_cents": 400,
+        "after_apportioned_amount_cents": 380,
+        "system_amount_cents": 400,
+        "before_daily_difference_cents": 0,
+        "after_daily_difference_cents": -20,
+        "delta_cents": -20,
+        "makeup_delta_cents": -20,
+        "entry_type": "reversal",
+        "entry_type_label": "冲回"
+      }
+    ],
+    "daily_difference_postings": [
+      {
+        "scope_id": "S-PARK",
+        "billing_day": "2025-03-03",
+        "before_line_id": "BL-A",
+        "after_line_id": "N8-A",
+        "old_line_id": "BL-A",
+        "new_line_id": "N8-A",
+        "before_apportioned_amount_cents": 300,
+        "after_apportioned_amount_cents": 333,
+        "system_amount_cents": 300,
+        "before_daily_difference_cents": 0,
+        "after_daily_difference_cents": 33,
+        "delta_cents": 33,
+        "makeup_delta_cents": 33,
+        "entry_type": "supplementary",
+        "entry_type_label": "补记"
+      },
+      {
+        "scope_id": "S-PARK",
+        "billing_day": "2025-03-04",
+        "before_line_id": "BL-B",
+        "after_line_id": "N8-B",
+        "old_line_id": "BL-B",
+        "new_line_id": "N8-B",
+        "before_apportioned_amount_cents": 400,
+        "after_apportioned_amount_cents": 380,
+        "system_amount_cents": 400,
+        "before_daily_difference_cents": 0,
+        "after_daily_difference_cents": -20,
+        "delta_cents": -20,
+        "makeup_delta_cents": -20,
+        "entry_type": "reversal",
+        "entry_type_label": "冲回"
+      }
+    ],
+    "makeup_entries": [
+      {
+        "scope_id": "S-PARK",
+        "billing_day": "2025-03-03",
+        "before_line_id": "BL-A",
+        "after_line_id": "N8-A",
+        "old_line_id": "BL-A",
+        "new_line_id": "N8-A",
+        "before_apportioned_amount_cents": 300,
+        "after_apportioned_amount_cents": 333,
+        "system_amount_cents": 300,
+        "before_daily_difference_cents": 0,
+        "after_daily_difference_cents": 33,
+        "delta_cents": 33,
+        "makeup_delta_cents": 33,
+        "entry_type": "supplementary",
+        "entry_type_label": "补记"
+      },
+      {
+        "scope_id": "S-PARK",
+        "billing_day": "2025-03-04",
+        "before_line_id": "BL-B",
+        "after_line_id": "N8-B",
+        "old_line_id": "BL-B",
+        "new_line_id": "N8-B",
+        "before_apportioned_amount_cents": 400,
+        "after_apportioned_amount_cents": 380,
+        "system_amount_cents": 400,
+        "before_daily_difference_cents": 0,
+        "after_daily_difference_cents": -20,
+        "delta_cents": -20,
+        "makeup_delta_cents": -20,
+        "entry_type": "reversal",
+        "entry_type_label": "冲回"
+      }
+    ],
+    "daily_changes": [
+      {
+        "scope_id": "S-PARK",
+        "billing_day": "2025-03-03",
+        "before_line_id": "BL-A",
+        "after_line_id": "N8-A",
+        "old_line_id": "BL-A",
+        "new_line_id": "N8-A",
+        "before_apportioned_amount_cents": 300,
+        "after_apportioned_amount_cents": 333,
+        "system_amount_cents": 300,
+        "before_daily_difference_cents": 0,
+        "after_daily_difference_cents": 33,
+        "delta_cents": 33,
+        "makeup_delta_cents": 33,
+        "entry_type": "supplementary",
+        "entry_type_label": "补记"
+      },
+      {
+        "scope_id": "S-PARK",
+        "billing_day": "2025-03-04",
+        "before_line_id": "BL-B",
+        "after_line_id": "N8-B",
+        "old_line_id": "BL-B",
+        "new_line_id": "N8-B",
+        "before_apportioned_amount_cents": 400,
+        "after_apportioned_amount_cents": 380,
+        "system_amount_cents": 400,
+        "before_daily_difference_cents": 0,
+        "after_daily_difference_cents": -20,
+        "delta_cents": -20,
+        "makeup_delta_cents": -20,
+        "entry_type": "reversal",
+        "entry_type_label": "冲回"
+      }
+    ],
+    "totals": {
+      "day_count": 5,
+      "apportioned_amount_cents": 1513,
+      "system_amount_cents": 1500,
+      "current_daily_difference_cents": 13,
+      "opening_billed_cents": 1500,
+      "opening_daily_difference_cents": 0,
+      "batch_posting_delta_cents": 13,
+      "supplementary_cents": 33,
+      "reversal_cents": 20,
+      "posting_count": 2,
+      "effective_order_count": 1,
+      "pending_order_count": 0
+    },
+    "settlement_basis": {
+      "S-PARK": {
+        "2025-03-01": {
+          "scope_id": "S-PARK",
+          "billing_day": "2025-03-01",
+          "openable": true,
+          "block_reasons": [],
+          "system_amount_yuan_fraction": "1",
+          "system_amount_exact_cents_fraction": "100",
+          "system_amount_cents_rounded": 100,
+          "control_keys": [
+            {
+              "scope_id": "S-PARK",
+              "billing_day": "2025-03-01",
+              "rate_id": "energy-flat"
+            }
+          ],
+          "component_ids": [
+            "R001"
+          ],
+          "segment_ids": [
+            "SEG-M-L1-001"
+          ],
+          "settlement_evidence": [
+            {
+              "atom_id": "A00001",
+              "component_id": "R001",
+              "segment_id": "SEG-M-L1-001",
+              "rate_id": "energy-flat",
+              "allocated_wh": 100,
+              "unit_price": "1/100",
+              "amount_fraction": "1",
+              "rounding": "exact_integer",
+              "meter_id": "M-L1",
+              "binding_id": "b-l1",
+              "tariff_version": "tv-energy-1"
+            }
+          ]
+        },
+        "2025-03-02": {
+          "scope_id": "S-PARK",
+          "billing_day": "2025-03-02",
+          "openable": true,
+          "block_reasons": [],
+          "system_amount_yuan_fraction": "2",
+          "system_amount_exact_cents_fraction": "200",
+          "system_amount_cents_rounded": 200,
+          "control_keys": [
+            {
+              "scope_id": "S-PARK",
+              "billing_day": "2025-03-02",
+              "rate_id": "energy-flat"
+            }
+          ],
+          "component_ids": [
+            "R002"
+          ],
+          "segment_ids": [
+            "SEG-M-L1-002"
+          ],
+          "settlement_evidence": [
+            {
+              "atom_id": "A00002",
+              "component_id": "R002",
+              "segment_id": "SEG-M-L1-002",
+              "rate_id": "energy-flat",
+              "allocated_wh": 200,
+              "unit_price": "1/100",
+              "amount_fraction": "2",
+              "rounding": "exact_integer",
+              "meter_id": "M-L1",
+              "binding_id": "b-l1",
+              "tariff_version": "tv-energy-1"
+            }
+          ]
+        },
+        "2025-03-03": {
+          "scope_id": "S-PARK",
+          "billing_day": "2025-03-03",
+          "openable": true,
+          "block_reasons": [],
+          "system_amount_yuan_fraction": "3",
+          "system_amount_exact_cents_fraction": "300",
+          "system_amount_cents_rounded": 300,
+          "control_keys": [
+            {
+              "scope_id": "S-PARK",
+              "billing_day": "2025-03-03",
+              "rate_id": "energy-flat"
+            }
+          ],
+          "component_ids": [
+            "R003"
+          ],
+          "segment_ids": [
+            "SEG-M-L1-003"
+          ],
+          "settlement_evidence": [
+            {
+              "atom_id": "A00003",
+              "component_id": "R003",
+              "segment_id": "SEG-M-L1-003",
+              "rate_id": "energy-flat",
+              "allocated_wh": 300,
+              "unit_price": "1/100",
+              "amount_fraction": "3",
+              "rounding": "exact_integer",
+              "meter_id": "M-L1",
+              "binding_id": "b-l1",
+              "tariff_version": "tv-energy-1"
+            }
+          ]
+        },
+        "2025-03-04": {
+          "scope_id": "S-PARK",
+          "billing_day": "2025-03-04",
+          "openable": true,
+          "block_reasons": [],
+          "system_amount_yuan_fraction": "4",
+          "system_amount_exact_cents_fraction": "400",
+          "system_amount_cents_rounded": 400,
+          "control_keys": [
+            {
+              "scope_id": "S-PARK",
+              "billing_day": "2025-03-04",
+              "rate_id": "energy-flat"
+            }
+          ],
+          "component_ids": [
+            "R004"
+          ],
+          "segment_ids": [
+            "SEG-M-L1-004"
+          ],
+          "settlement_evidence": [
+            {
+              "atom_id": "A00004",
+              "component_id": "R004",
+              "segment_id": "SEG-M-L1-004",
+              "rate_id": "energy-flat",
+              "allocated_wh": 400,
+              "unit_price": "1/100",
+              "amount_fraction": "4",
+              "rounding": "exact_integer",
+              "meter_id": "M-L1",
+              "binding_id": "b-l1",
+              "tariff_version": "tv-energy-1"
+            }
+          ]
+        },
+        "2025-03-05": {
+          "scope_id": "S-PARK",
+          "billing_day": "2025-03-05",
+          "openable": true,
+          "block_reasons": [],
+          "system_amount_yuan_fraction": "5",
+          "system_amount_exact_cents_fraction": "500",
+          "system_amount_cents_rounded": 500,
+          "control_keys": [
+            {
+              "scope_id": "S-PARK",
+              "billing_day": "2025-03-05",
+              "rate_id": "energy-flat"
+            }
+          ],
+          "component_ids": [
+            "R005"
+          ],
+          "segment_ids": [
+            "SEG-M-L1-005"
+          ],
+          "settlement_evidence": [
+            {
+              "atom_id": "A00005",
+              "component_id": "R005",
+              "segment_id": "SEG-M-L1-005",
+              "rate_id": "energy-flat",
+              "allocated_wh": 500,
+              "unit_price": "1/100",
+              "amount_fraction": "5",
+              "rounding": "exact_integer",
+              "meter_id": "M-L1",
+              "binding_id": "b-l1",
+              "tariff_version": "tv-energy-1"
+            }
+          ]
+        }
+      }
+    },
+    "settlement_audit": {
+      "money_scale": 100,
+      "overall_status": "settled",
+      "rule_version": {
+        "input_rule_version": "ledger-example-rules-1",
+        "engine_rule_version": "integer-slice-flow-1.0.0",
+        "calendar_rule_version": null
+      },
+      "input_audit": {
+        "path": null,
+        "sha256": null,
+        "original_readings": [
+          {
+            "reading_id": "rd-0",
+            "meter_id": "M-L1",
+            "ts": "2025-03-01T00:00:00+00:00",
+            "value_wh": 0
+          },
+          {
+            "reading_id": "rd-1",
+            "meter_id": "M-L1",
+            "ts": "2025-03-02T00:00:00+00:00",
+            "value_wh": 100
+          },
+          {
+            "reading_id": "rd-2",
+            "meter_id": "M-L1",
+            "ts": "2025-03-03T00:00:00+00:00",
+            "value_wh": 300
+          },
+          {
+            "reading_id": "rd-3",
+            "meter_id": "M-L1",
+            "ts": "2025-03-04T00:00:00+00:00",
+            "value_wh": 600
+          },
+          {
+            "reading_id": "rd-4",
+            "meter_id": "M-L1",
+            "ts": "2025-03-05T00:00:00+00:00",
+            "value_wh": 1000
+          },
+          {
+            "reading_id": "rd-5",
+            "meter_id": "M-L1",
+            "ts": "2025-03-06T00:00:00+00:00",
+            "value_wh": 1500
+          }
+        ],
+        "exchange_vouchers": [],
+        "excluded_readings": []
+      }
+    },
+    "bill_attribution": [
+      {
+        "scope_id": "S-PARK",
+        "billing_day": "2025-03-01",
+        "line_id": "BL-A",
+        "line_kind": "original",
+        "source_exchange_id": null
+      },
+      {
+        "scope_id": "S-PARK",
+        "billing_day": "2025-03-02",
+        "line_id": "BL-A",
+        "line_kind": "original",
+        "source_exchange_id": null
+      },
+      {
+        "scope_id": "S-PARK",
+        "billing_day": "2025-03-03",
+        "line_id": "N8-A",
+        "line_kind": "new",
+        "source_exchange_id": "EX-8"
+      },
+      {
+        "scope_id": "S-PARK",
+        "billing_day": "2025-03-04",
+        "line_id": "N8-B",
+        "line_kind": "new",
+        "source_exchange_id": "EX-8"
+      },
+      {
+        "scope_id": "S-PARK",
+        "billing_day": "2025-03-05",
+        "line_id": "BL-B",
+        "line_kind": "original",
+        "source_exchange_id": null
+      }
+    ],
+    "daily_apportionments": [
+      {
+        "scope_id": "S-PARK",
+        "billing_day": "2025-03-01",
+        "line_id": "BL-A",
+        "line_kind": "original",
+        "apportioned_amount_cents": 100,
+        "system_amount_cents": 100,
+        "daily_difference_cents": 0,
+        "basis": {
+          "openable": true,
+          "system_amount_yuan_fraction": "1",
+          "system_amount_exact_cents_fraction": "100",
+          "system_amount_cents_rounded": 100,
+          "control_keys": [
+            {
+              "scope_id": "S-PARK",
+              "billing_day": "2025-03-01",
+              "rate_id": "energy-flat"
+            }
+          ],
+          "component_ids": [
+            "R001"
+          ],
+          "segment_ids": [
+            "SEG-M-L1-001"
+          ],
+          "settlement_evidence": [
+            {
+              "atom_id": "A00001",
+              "component_id": "R001",
+              "segment_id": "SEG-M-L1-001",
+              "rate_id": "energy-flat",
+              "allocated_wh": 100,
+              "unit_price": "1/100",
+              "amount_fraction": "1",
+              "rounding": "exact_integer",
+              "meter_id": "M-L1",
+              "binding_id": "b-l1",
+              "tariff_version": "tv-energy-1"
+            }
+          ]
+        }
+      },
+      {
+        "scope_id": "S-PARK",
+        "billing_day": "2025-03-02",
+        "line_id": "BL-A",
+        "line_kind": "original",
+        "apportioned_amount_cents": 200,
+        "system_amount_cents": 200,
+        "daily_difference_cents": 0,
+        "basis": {
+          "openable": true,
+          "system_amount_yuan_fraction": "2",
+          "system_amount_exact_cents_fraction": "200",
+          "system_amount_cents_rounded": 200,
+          "control_keys": [
+            {
+              "scope_id": "S-PARK",
+              "billing_day": "2025-03-02",
+              "rate_id": "energy-flat"
+            }
+          ],
+          "component_ids": [
+            "R002"
+          ],
+          "segment_ids": [
+            "SEG-M-L1-002"
+          ],
+          "settlement_evidence": [
+            {
+              "atom_id": "A00002",
+              "component_id": "R002",
+              "segment_id": "SEG-M-L1-002",
+              "rate_id": "energy-flat",
+              "allocated_wh": 200,
+              "unit_price": "1/100",
+              "amount_fraction": "2",
+              "rounding": "exact_integer",
+              "meter_id": "M-L1",
+              "binding_id": "b-l1",
+              "tariff_version": "tv-energy-1"
+            }
+          ]
+        }
+      },
+      {
+        "scope_id": "S-PARK",
+        "billing_day": "2025-03-03",
+        "line_id": "N8-A",
+        "line_kind": "new",
+        "apportioned_amount_cents": 333,
+        "system_amount_cents": 300,
+        "daily_difference_cents": 33,
+        "basis": {
+          "openable": true,
+          "system_amount_yuan_fraction": "3",
+          "system_amount_exact_cents_fraction": "300",
+          "system_amount_cents_rounded": 300,
+          "control_keys": [
+            {
+              "scope_id": "S-PARK",
+              "billing_day": "2025-03-03",
+              "rate_id": "energy-flat"
+            }
+          ],
+          "component_ids": [
+            "R003"
+          ],
+          "segment_ids": [
+            "SEG-M-L1-003"
+          ],
+          "settlement_evidence": [
+            {
+              "atom_id": "A00003",
+              "component_id": "R003",
+              "segment_id": "SEG-M-L1-003",
+              "rate_id": "energy-flat",
+              "allocated_wh": 300,
+              "unit_price": "1/100",
+              "amount_fraction": "3",
+              "rounding": "exact_integer",
+              "meter_id": "M-L1",
+              "binding_id": "b-l1",
+              "tariff_version": "tv-energy-1"
+            }
+          ]
+        }
+      },
+      {
+        "scope_id": "S-PARK",
+        "billing_day": "2025-03-04",
+        "line_id": "N8-B",
+        "line_kind": "new",
+        "apportioned_amount_cents": 380,
+        "system_amount_cents": 400,
+        "daily_difference_cents": -20,
+        "basis": {
+          "openable": true,
+          "system_amount_yuan_fraction": "4",
+          "system_amount_exact_cents_fraction": "400",
+          "system_amount_cents_rounded": 400,
+          "control_keys": [
+            {
+              "scope_id": "S-PARK",
+              "billing_day": "2025-03-04",
+              "rate_id": "energy-flat"
+            }
+          ],
+          "component_ids": [
+            "R004"
+          ],
+          "segment_ids": [
+            "SEG-M-L1-004"
+          ],
+          "settlement_evidence": [
+            {
+              "atom_id": "A00004",
+              "component_id": "R004",
+              "segment_id": "SEG-M-L1-004",
+              "rate_id": "energy-flat",
+              "allocated_wh": 400,
+              "unit_price": "1/100",
+              "amount_fraction": "4",
+              "rounding": "exact_integer",
+              "meter_id": "M-L1",
+              "binding_id": "b-l1",
+              "tariff_version": "tv-energy-1"
+            }
+          ]
+        }
+      },
+      {
+        "scope_id": "S-PARK",
+        "billing_day": "2025-03-05",
+        "line_id": "BL-B",
+        "line_kind": "original",
+        "apportioned_amount_cents": 500,
+        "system_amount_cents": 500,
+        "daily_difference_cents": 0,
+        "basis": {
+          "openable": true,
+          "system_amount_yuan_fraction": "5",
+          "system_amount_exact_cents_fraction": "500",
+          "system_amount_cents_rounded": 500,
+          "control_keys": [
+            {
+              "scope_id": "S-PARK",
+              "billing_day": "2025-03-05",
+              "rate_id": "energy-flat"
+            }
+          ],
+          "component_ids": [
+            "R005"
+          ],
+          "segment_ids": [
+            "SEG-M-L1-005"
+          ],
+          "settlement_evidence": [
+            {
+              "atom_id": "A00005",
+              "component_id": "R005",
+              "segment_id": "SEG-M-L1-005",
+              "rate_id": "energy-flat",
+              "allocated_wh": 500,
+              "unit_price": "1/100",
+              "amount_fraction": "5",
+              "rounding": "exact_integer",
+              "meter_id": "M-L1",
+              "binding_id": "b-l1",
+              "tariff_version": "tv-energy-1"
+            }
+          ]
+        }
+      }
+    ],
+    "daily_differences": [
+      {
+        "scope_id": "S-PARK",
+        "billing_day": "2025-03-01",
+        "daily_difference_cents": 0,
+        "line_id": "BL-A"
+      },
+      {
+        "scope_id": "S-PARK",
+        "billing_day": "2025-03-02",
+        "daily_difference_cents": 0,
+        "line_id": "BL-A"
+      },
+      {
+        "scope_id": "S-PARK",
+        "billing_day": "2025-03-03",
+        "daily_difference_cents": 33,
+        "line_id": "N8-A"
+      },
+      {
+        "scope_id": "S-PARK",
+        "billing_day": "2025-03-04",
+        "daily_difference_cents": -20,
+        "line_id": "N8-B"
+      },
+      {
+        "scope_id": "S-PARK",
+        "billing_day": "2025-03-05",
+        "daily_difference_cents": 0,
+        "line_id": "BL-B"
+      }
+    ],
+    "status": "accepted",
+    "received_order_ids": [
+      "EX-8"
+    ],
+    "new_order_ids": [
+      "EX-8"
+    ],
+    "idempotent_order_ids": [],
+    "affected_order_ids": [
+      "EX-8"
+    ],
+    "changed_adjudication_ids": [],
+    "reaffirmed_adjudication_ids": []
+  },
+  "store_path": "/tmp/park_ledger.json"
+}

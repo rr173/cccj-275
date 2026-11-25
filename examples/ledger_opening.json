@@ -1,0 +1,25 @@
+{
+  "ledger_id": "PARK-ENERGY-2025-03",
+  "settlement_input_path": "ledger_settlement_input.json",
+  "opening_batch_id": "OPENING",
+  "original_bills": [
+    {
+      "line_id": "BL-A",
+      "bill_id": "BILL-202503-A",
+      "scope_id": "S-PARK",
+      "day_from": "2025-03-01",
+      "day_to": "2025-03-04",
+      "amount_cents": 600,
+      "fee_type": "active_energy"
+    },
+    {
+      "line_id": "BL-B",
+      "bill_id": "BILL-202503-B",
+      "scope_id": "S-PARK",
+      "day_from": "2025-03-04",
+      "day_to": "2025-03-06",
+      "amount_cents": 900,
+      "fee_type": "active_energy"
+    }
+  ]
+}

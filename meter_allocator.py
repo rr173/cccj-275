@@ -20,7 +20,7 @@ from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta, timezone
 from fractions import Fraction
 from pathlib import Path
-from typing import Any, Iterable, Optional
+from typing import Any, Iterable, Optional, Sequence
 
 try:
     from zoneinfo import ZoneInfo
@@ -4106,6 +4106,2494 @@ def settle(root: dict, input_path: Optional[Path] = None, raw_bytes: Optional[by
     return report
 
 
+# ===========================================================================
+# Makeup difference ledger (补差账本)
+# ---------------------------------------------------------------------------
+# Out-of-order electricity-fee exchange orders (电费换单) arrive in actual
+# reception batches.  Adjudication follows the supplier effective sequence;
+# money is integer cents with an exact Fraction basis, and every reception
+# batch freezes the finance view seen at that moment.
+#
+# The incremental re-adjudication only touches the newly received orders and
+# later orders reachable through same-scope half-open day-interval overlap.
+# A full from-opening re-fold is provided as an audit/self-check.
+# ===========================================================================
+
+MAKEUP_LEDGER_RULE_VERSION = "makeup-difference-ledger-1.0.0"
+_LEDGER_OPENING_BATCH = "OPENING"
+
+
+class LedgerError(InputError):
+    """Base class for makeup-ledger contract / accounting failures."""
+
+
+class LedgerStructureError(LedgerError):
+    """A ledger document is structurally illegal and must not be accepted."""
+
+
+class LedgerOpeningRejected(LedgerError):
+    """Fixed baseline reports unattributable blocking evidence / bad days."""
+
+    def __init__(self, report: dict):
+        self.report = report
+        super().__init__(report.get("error") or "makeup ledger opening rejected")
+
+
+class LedgerBatchRejected(LedgerError):
+    """A reception batch violates uniqueness/idempotency/structure rules."""
+
+    def __init__(self, report: dict):
+        self.report = report
+        super().__init__(report.get("error") or "makeup ledger batch rejected")
+
+
+_LED_MISSING = object()
+
+
+def _led_deepcopy(obj: Any) -> Any:
+    """State is JSON primitives only; JSON round-trip is a safe deep copy."""
+    return json.loads(json.dumps(obj, ensure_ascii=False))
+
+
+def _led_pick(raw: dict, keys: tuple[str, ...], default: Any = _LED_MISSING) -> Any:
+    for key in keys:
+        if key in raw and raw[key] is not None:
+            return raw[key]
+    if default is _LED_MISSING:
+        return None
+    return default
+
+
+def _led_require(raw: dict, keys: tuple[str, ...], path: str) -> Any:
+    value = _led_pick(raw, keys)
+    if value is None or (isinstance(value, str) and not value.strip()):
+        raise LedgerStructureError(f"{path}: missing required field (one of {', '.join(keys)})")
+    return value
+
+
+def _led_day(value: Any, path: str) -> date:
+    if isinstance(value, datetime):
+        return value.date()
+    if isinstance(value, date):
+        return value
+    if isinstance(value, str):
+        text = value.strip()
+        if not text:
+            raise LedgerStructureError(f"{path}: empty date")
+        try:
+            if "T" in text or " " in text:
+                return datetime.fromisoformat(text.replace("Z", "+00:00")).date()
+            return date.fromisoformat(text[:10])
+        except ValueError as exc:
+            raise LedgerStructureError(f"{path}: {value!r} is not a YYYY-MM-DD billing day") from exc
+    raise LedgerStructureError(f"{path}: expected YYYY-MM-DD string, got {type(value).__name__}")
+
+
+_LED_INTERVAL_PAIRS: tuple[tuple[str, str], ...] = (
+    ("day_from", "day_to"),
+    ("start_day", "end_day"),
+    ("billing_day_from", "billing_day_to"),
+    ("billing_day_start", "billing_day_end"),
+    ("from_day", "to_day"),
+    ("start_date", "end_date"),
+    ("date_from", "date_to"),
+    ("period_start_day", "period_end_day"),
+    ("period_start", "period_end"),
+    ("valid_from_day", "valid_to_day"),
+    ("from_date", "to_date"),
+    ("from", "to"),
+    ("start", "end"),
+    ("begin", "end"),
+    ("开始日期", "结束日期"),
+    ("开始日", "结束日"),
+    ("起", "止"),
+)
+
+_LED_INTERVAL_ARRAY_KEYS = (
+    "billing_day_interval", "day_interval", "date_interval", "interval",
+    "period", "日期区间", "计费日区间", "区间",
+)
+_LED_DAY_LIST_KEYS = (
+    "billing_days", "billing_day_list", "day_list", "days", "dates", "计费日列表",
+)
+
+
+def _led_interval(raw: dict, path: str) -> tuple[date, date]:
+    """Parse a half-open ``[start, end)`` billing-day interval."""
+    # 1) Explicit start/end paired fields take precedence.
+    start_v = end_v = None
+    for sk, ek in _LED_INTERVAL_PAIRS:
+        if sk in raw and raw[sk] is not None and ek in raw and raw[ek] is not None:
+            start_v, end_v = raw[sk], raw[ek]
+            break
+    # 2) Two-element endpoint arrays such as interval:[start,end).
+    if start_v is None:
+        for key in _LED_INTERVAL_ARRAY_KEYS:
+            value = raw.get(key)
+            if isinstance(value, (list, tuple)) and len(value) == 2:
+                start_v, end_v = value[0], value[1]
+                break
+            if isinstance(value, dict):
+                s = _led_pick(value, ("from", "start", "start_day", "day_from", "0"))
+                e = _led_pick(value, ("to", "end", "end_day", "day_to", "1"))
+                if s is not None and e is not None:
+                    start_v, end_v = s, e
+                    break
+    if start_v is not None and end_v is not None:
+        start = _led_day(start_v, path + ".start")
+        end = _led_day(end_v, path + ".end")
+        inclusive = bool(_led_pick(raw, ("end_inclusive", "inclusive_end", "inclusive", "含结束日"), False))
+        if inclusive:
+            end = end + timedelta(days=1)
+        if end <= start:
+            raise LedgerStructureError(
+                f"{path}: interval must be a non-empty half-open range, got [{start}, {end})"
+            )
+        return start, end
+
+    # 3) Explicit contiguous list of included billing days.
+    for list_key in _LED_DAY_LIST_KEYS:
+        value = raw.get(list_key)
+        if isinstance(value, list) and value:
+            days = sorted(_led_day(v, f"{path}.{list_key}[{i}]") for i, v in enumerate(value))
+            for i in range(1, len(days)):
+                if (days[i] - days[i - 1]).days != 1:
+                    raise LedgerStructureError(f"{path}.{list_key}: billing days must be contiguous")
+            return days[0], days[-1] + timedelta(days=1)
+
+    # 4) A single billing day -> [day, day+1).
+    single = _led_pick(raw, ("billing_day", "single_day", "date", "计费日"), None)
+    if single is not None:
+        d = _led_day(single, path + ".billing_day")
+        return d, d + timedelta(days=1)
+
+    raise LedgerStructureError(f"{path}: half-open interval requires start/end billing days")
+
+
+def _led_days(start: date, end: date) -> list[date]:
+    return [start + timedelta(days=i) for i in range((end - start).days)]
+
+
+def _led_day_key(d: date) -> str:
+    return d.isoformat()
+
+
+def _led_round_half_up_cents(exact_cents: Fraction) -> int:
+    """四舍五入到分 (half rounds up); amounts here are non-negative."""
+    return int((exact_cents + Fraction(1, 2)).__floor__())
+
+
+def _led_amount_cents(value: Any, path: str, *, unit: str = "cents") -> int:
+    """Parse a non-negative integer-cent amount.
+
+    ``unit='yuan'`` accepts decimal/rational yuan and requires an exact whole
+    number of cents.  ``unit='smart'`` treats JSON integers and all-digit
+    strings as cents, decimal strings / rationals as yuan.
+    """
+    if isinstance(value, bool):
+        raise LedgerStructureError(f"{path}: boolean is not an amount")
+    if unit == "cents":
+        if isinstance(value, int):
+            cents = value
+        elif isinstance(value, str) and value.strip().lstrip("-").isdigit():
+            cents = int(value.strip())
+        else:
+            raise LedgerStructureError(f"{path}: expected non-negative integer cents, got {value!r}")
+    elif unit == "yuan":
+        try:
+            f = parse_rational(value, path) if not isinstance(value, Fraction) else value
+        except InputError as exc:
+            raise LedgerStructureError(str(exc)) from exc
+        scaled = f * 100
+        if scaled.denominator != 1:
+            raise LedgerStructureError(f"{path}: amount {value!r} is not an exact number of cents")
+        cents = scaled.numerator
+    else:  # smart
+        if isinstance(value, int):
+            cents = value
+        elif isinstance(value, str):
+            text = value.strip()
+            if text.lstrip("-").isdigit():
+                cents = int(text)
+            else:
+                return _led_amount_cents(text, path, unit="yuan")
+        elif isinstance(value, float):
+            return _led_amount_cents(repr(value), path, unit="yuan")
+        else:
+            return _led_amount_cents(value, path, unit="yuan")
+    if cents < 0:
+        raise LedgerStructureError(f"{path}: amount must be non-negative, got {cents}")
+    return cents
+
+
+_LED_NON_ENERGY_MARKERS = (
+    "basic_fee", "basic_electricity", "demand_fee", "capacity_fee",
+    "power_factor", "adjustment_fee", "surcharge", "government_fund",
+    "基本电费", "需量电费", "容量电费", "力调", "功率因数调整", "代征", "政府性基金",
+)
+_LED_ENERGY_MARKERS = (
+    "energy", "active_energy", "electricity_charge", "energy_fee",
+    "电能", "电度", "电量电费",
+)
+
+
+def _led_is_energy_line(raw: dict) -> bool:
+    kind = _led_pick(raw, (
+        "fee_type", "charge_type", "fee_category", "category",
+        "tariff_kind", "charge_category", "fee_kind",
+        "费用类型", "费别", "费用类别",
+    ))
+    if kind is None:
+        return True
+    text = str(kind).strip().lower()
+    for marker in _LED_NON_ENERGY_MARKERS:
+        if marker.lower() in text:
+            return False
+    return True
+
+
+def ledger_apportion_by_weights(
+    total_cents: int,
+    days: Sequence[date] | list[date],
+    weights: dict[str, Fraction] | dict[date, Fraction] | None = None,
+) -> dict[str, int]:
+    """Largest-remainder apportionment to integer cents.
+
+    Floor every exact quota, then hand the remaining cents to the largest
+    decimal remainders; equal remainders go to the earlier billing day.
+    All-zero weights fall back to equal weights.
+    """
+    days = list(days)
+    if total_cents < 0:
+        raise LedgerStructureError("apportionment total must be non-negative")
+    n = len(days)
+    if n == 0:
+        return {}
+    weights = weights or {}
+
+    def weight(d: date) -> Fraction:
+        if d in weights:  # type: ignore[operator]
+            return Fraction(weights[d])  # type: ignore[index]
+        key = d.isoformat()
+        if key in weights:
+            return Fraction(weights[key])  # type: ignore[index]
+        return Fraction(0)
+
+    ws = [weight(d) for d in days]
+    if any(w < 0 for w in ws):
+        raise LedgerStructureError("system weights must be non-negative for proportional apportionment")
+    sw = sum(ws, Fraction(0))
+    if sw == 0:
+        ws = [Fraction(1) for _ in days]
+        sw = Fraction(n)
+    total_f = Fraction(total_cents)
+    quotas = [total_f * w / sw for w in ws]
+    floors = [q.numerator // q.denominator for q in quotas]
+    remainder = total_cents - sum(floors)
+    if not 0 <= remainder <= n:
+        # Defensive: mathematically impossible, but never silently corrupt money.
+        raise LedgerError(f"apportionment remainder {remainder} out of range 0..{n}")
+    fracs = [q - f for q, f in zip(quotas, floors)]
+    order = sorted(range(n), key=lambda i: (-fracs[i], days[i].toordinal()))
+    for i in order[:remainder]:
+        floors[i] += 1
+    return {days[i].isoformat(): int(floors[i]) for i in range(n)}
+
+
+# Common public alias requested by the spec vocabulary.
+apportion_amount_to_days = ledger_apportion_by_weights
+apportion_amount = ledger_apportion_by_weights
+apportion_bill_amount = ledger_apportion_by_weights
+largest_remainder_apportionment = ledger_apportion_by_weights
+allocate_amount_to_days = ledger_apportion_by_weights
+
+
+def _led_parse_bill_line(raw: Any, path: str) -> dict:
+    if not isinstance(raw, dict):
+        raise LedgerStructureError(f"{path}: bill line must be an object")
+    line_id = str(_led_require(raw, (
+        "line_id", "line_no", "line_number", "bill_line_id", "id",
+        "行号", "行编号", "账单行号",
+    ), path))
+    scope = _led_pick(raw, (
+        "scope_id", "scope", "settlement_scope_id", "scope_code",
+        "account_scope_id", "结算范围", "范围",
+    ))
+    scope = str(scope) if scope is not None else None
+    start, end = _led_interval(raw, path)
+    cents_value = _led_pick(raw, (
+        "amount_cents", "amount_fen", "amount_fen_int", "total_amount_cents",
+        "cents", "金额分",
+    ))
+    if cents_value is not None:
+        amount_cents = _led_amount_cents(cents_value, path + ".amount_cents", unit="cents")
+    else:
+        yuan_value = _led_pick(raw, ("amount_yuan", "amount_yuan_fraction", "金额元"))
+        if yuan_value is not None:
+            amount_cents = _led_amount_cents(yuan_value, path + ".amount_yuan", unit="yuan")
+        else:
+            smart_value = _led_require(raw, ("amount", "total_amount", "bill_amount", "金额"), path + ".amount")
+            amount_cents = _led_amount_cents(smart_value, path + ".amount", unit="smart")
+    energy = _led_is_energy_line(raw)
+    return {
+        "line_id": line_id,
+        "scope_id": scope,
+        "start_day": _led_day_key(start),
+        "end_day": _led_day_key(end),
+        "amount_cents": amount_cents,
+        "is_energy": energy,
+        "fee_type": _led_pick(raw, ("fee_type", "charge_type", "category", "费用类型"), None),
+    }
+
+
+def _led_flatten_bill_lines(raw_bills: Any, path: str) -> tuple[list[dict], list[dict]]:
+    """Accept bare line lists or bill documents with nested ``lines``."""
+    if raw_bills is None:
+        return [], []
+    if isinstance(raw_bills, dict):
+        raw_bills = [raw_bills]
+    if not isinstance(raw_bills, list):
+        raise LedgerStructureError(f"{path}: must be a list of bill lines / bills")
+    lines: list[dict] = []
+    skipped: list[dict] = []
+    for i, item in enumerate(raw_bills):
+        if isinstance(item, dict) and isinstance(item.get("lines"), list) and not _led_looks_like_line(item):
+            bill_id = item.get("bill_id") or item.get("bill_no") or item.get("id")
+            for j, sub in enumerate(item["lines"]):
+                parsed = _led_parse_bill_line(sub, f"{path}[{i}].lines[{j}]")
+                if parsed["scope_id"] is None:
+                    raise LedgerStructureError(f"{path}[{i}].lines[{j}]: scope_id is required for original bill lines")
+                parsed["bill_id"] = str(bill_id) if bill_id is not None else None
+                if parsed["is_energy"]:
+                    lines.append(parsed)
+                else:
+                    skipped.append(parsed)
+        else:
+            parsed = _led_parse_bill_line(item, f"{path}[{i}]")
+            if parsed["scope_id"] is None:
+                raise LedgerStructureError(f"{path}[{i}]: scope_id is required for original bill lines")
+            if parsed["is_energy"]:
+                lines.append(parsed)
+            else:
+                skipped.append(parsed)
+    return lines, skipped
+
+
+def _led_looks_like_line(raw: dict) -> bool:
+    return any(k in raw for k in ("line_id", "line_no", "line_number", "行号", "amount_cents"))
+
+
+def _led_parse_old_ids(raw: Any, path: str) -> list[str]:
+    if raw is None:
+        raise LedgerStructureError(f"{path}: old red-flush line ids are required")
+    if not isinstance(raw, list) or len(raw) == 0:
+        # Also accept a single scalar id.
+        if isinstance(raw, (str, int)) and not isinstance(raw, bool):
+            return [str(raw)]
+        raise LedgerStructureError(f"{path}: expected a non-empty list of old line ids")
+    out: list[str] = []
+    for i, item in enumerate(raw):
+        if isinstance(item, dict):
+            lid = _led_require(item, ("line_id", "line_no", "line_number", "id", "行号"), f"{path}[{i}]")
+            out.append(str(lid))
+        elif isinstance(item, (str, int)) and not isinstance(item, bool):
+            out.append(str(item))
+        else:
+            raise LedgerStructureError(f"{path}[{i}]: old line id must be string/int or object")
+    # De-duplicate while preserving the listed order.
+    seen: set[str] = set()
+    uniq: list[str] = []
+    for lid in out:
+        if lid not in seen:
+            seen.add(lid)
+            uniq.append(lid)
+    return uniq
+
+
+def ledger_parse_exchange_order(raw: Any, path: str = "exchange") -> dict:
+    if not isinstance(raw, dict):
+        raise LedgerStructureError(f"{path}: exchange order must be an object")
+    exchange_id = str(_led_require(raw, (
+        "exchange_id", "exchange_no", "exchange_number", "order_id", "order_no",
+        "voucher_id", "change_id", "note_id", "bill_change_id", "id",
+        "换单编号", "换单号", "编号",
+    ), path))
+    seq_value = _led_require(raw, (
+        "effective_seq", "effective_sequence", "effective_sequence_no",
+        "effect_seq", "effective_order", "sequence_no", "sequence", "seq",
+        "生效序号", "生效次序",
+    ), path)
+    if isinstance(seq_value, bool):
+        raise LedgerStructureError(f"{path}.effective_seq: boolean is not a sequence")
+    try:
+        if isinstance(seq_value, int):
+            seq = seq_value
+        elif isinstance(seq_value, float) and float(seq_value).is_integer():
+            seq = int(seq_value)
+        elif isinstance(seq_value, str) and seq_value.strip().lstrip("-").isdigit():
+            seq = int(seq_value.strip())
+        else:
+            raise ValueError
+    except (ValueError, AttributeError) as exc:
+        raise LedgerStructureError(f"{path}.effective_seq: {seq_value!r} is not an integer") from exc
+    scope = str(_led_require(raw, (
+        "scope_id", "scope", "settlement_scope_id", "scope_code", "结算范围", "范围",
+    ), path))
+    start, end = _led_interval(raw, path)
+    old_raw = _led_pick(raw, (
+        "red_flush_line_ids", "old_line_ids", "red_line_ids", "flushed_line_ids",
+        "flush_line_ids", "replaces_line_ids", "red_flush", "old_lines",
+        "red_flush_line_id", "old_line_id", "red_line_id", "flush_line_id",
+        "replaces_line_id", "冲红行号", "旧行号", "冲红行",
+    ))
+    old_line_ids = _led_parse_old_ids(old_raw, path + ".old_line_ids")
+    new_raw = _led_pick(raw, (
+        "new_lines", "replacement_lines", "new_bill_lines",
+        "new_bill_rows", "lines", "新账单行", "新行",
+    ))
+    if not isinstance(new_raw, list) or not new_raw:
+        raise LedgerStructureError(f"{path}.new_lines: expected a non-empty list of new bill lines")
+    new_lines: list[dict] = []
+    skipped_non_energy: list[dict] = []
+    for j, sub in enumerate(new_raw):
+        line = _led_parse_bill_line(sub, f"{path}.new_lines[{j}]")
+        if line["scope_id"] is None:
+            line["scope_id"] = scope
+        if line["scope_id"] != scope:
+            raise LedgerStructureError(
+                f"{path}.new_lines[{j}]: scope {line['scope_id']!r} differs from order scope {scope!r}"
+            )
+        if line["is_energy"]:
+            new_lines.append(line)
+        else:
+            skipped_non_energy.append(line)
+    if not new_lines:
+        raise LedgerStructureError(f"{path}.new_lines: no electric-energy lines to post")
+    # Structural coverage: new lines must partition the order interval by day.
+    order_days = set(_led_days(start, end))
+    covered: set[date] = set()
+    for line in new_lines:
+        ls = date.fromisoformat(line["start_day"])
+        le = date.fromisoformat(line["end_day"])
+        line_days = set(_led_days(ls, le))
+        if not line_days:
+            raise LedgerStructureError(f"{path}: new line {line['line_id']} has empty interval")
+        if not line_days <= order_days:
+            raise LedgerStructureError(
+                f"{path}: new line {line['line_id']} [{line['start_day']},{line['end_day']}) "
+                f"extends outside order interval [{_led_day_key(start)},{_led_day_key(end)})"
+            )
+        overlap = covered & line_days
+        if overlap:
+            days_txt = ",".join(sorted(d.isoformat() for d in overlap))
+            raise LedgerStructureError(
+                f"{path}: new lines overlap on days {days_txt}; new bill lines must not overlap"
+            )
+        covered |= line_days
+    missing = order_days - covered
+    if missing:
+        days_txt = ",".join(sorted(d.isoformat() for d in missing))
+        raise LedgerStructureError(
+            f"{path}: new lines do not cover order interval; missing days {days_txt}"
+        )
+    new_ids = [ln["line_id"] for ln in new_lines]
+    dup = {x for x in new_ids if new_ids.count(x) > 1}
+    if dup:
+        raise LedgerStructureError(f"{path}: duplicate new line ids {sorted(dup)}")
+    content = {
+        "exchange_id": exchange_id,
+        "effective_seq": seq,
+        "scope_id": scope,
+        "start_day": _led_day_key(start),
+        "end_day": _led_day_key(end),
+        "old_line_ids": old_line_ids,
+        "new_lines": new_lines,
+    }
+    content["content_hash"] = _led_content_hash(content)
+    return content
+
+
+def _led_content_hash(content: dict) -> str:
+    payload = {k: v for k, v in content.items() if k != "content_hash"}
+    return hashlib.sha256(
+        json.dumps(payload, sort_keys=True, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+
+
+def _led_looks_like_report(obj: Any) -> bool:
+    return isinstance(obj, dict) and "verification" in obj and isinstance(obj.get("slices"), list)
+
+
+def ledger_build_basis(
+    settlement: Any = None,
+    settlement_report: Any = None,
+    system_amounts: Any = None,
+    money_scale: int = 100,
+) -> dict:
+    """Build the per scope/day verified settlement basis.
+
+    Accepts a settlement input root (settle() is run), a ready settlement
+    report, or an explicit ``system_amounts`` mapping for lightweight use.
+    """
+    report = settlement_report
+    root = settlement if isinstance(settlement, dict) and not _led_looks_like_report(settlement) else None
+    if report is None and settlement is not None:
+        if _led_looks_like_report(settlement):
+            report = settlement
+        else:
+            report = settle(settlement)
+    if settlement_report is not None and _led_looks_like_report(settlement_report):
+        report = settlement_report
+
+    basis: dict[str, dict[str, dict]] = defaultdict(dict)
+    global_blockers: list[dict] = []
+    scope_blockers: dict[str, list[dict]] = defaultdict(list)
+    settlement_info: dict[str, Any] = {"money_scale": money_scale}
+
+    if system_amounts is not None:
+        _led_ingest_explicit_amounts(system_amounts, basis, money_scale)
+
+    if report is not None:
+        if not _led_looks_like_report(report):
+            raise LedgerStructureError("settlement_report does not look like a settle() report")
+        settlement_info.update({
+            "overall_status": report.get("overall_status"),
+            "rule_version": report.get("rule_version"),
+            "input_audit": report.get("input_audit"),
+        })
+        comp_by_id = {c.get("component_id"): c for c in report.get("components", []) if isinstance(c, dict)}
+        checks = report.get("verification", {}).get("control_checks", [])
+        seg_checks = {
+            c.get("segment_id"): c
+            for c in report.get("verification", {}).get("segment_checks", [])
+            if isinstance(c, dict)
+        }
+        ccs_by_key: dict[tuple[str, str, str], dict] = {}
+        ccs_by_day: dict[tuple[str, str], list[dict]] = defaultdict(list)
+        for c in checks:
+            ctrl = c.get("control") or {}
+            sid, day, rid = ctrl.get("scope_id"), ctrl.get("billing_day"), ctrl.get("rate_id")
+            if sid is None or day is None:
+                continue
+            key = (str(sid), str(day), str(rid))
+            ccs_by_key[key] = c
+            ccs_by_day[(str(sid), str(day))].append(c)
+
+        amount_by_day: dict[tuple[str, str], Fraction] = defaultdict(Fraction)
+        evidence_by_day: dict[tuple[str, str], list[dict]] = defaultdict(list)
+        meter_scopes: dict[str, set[str]] = defaultdict(set)
+        for sl in report.get("slices", []):
+            ctrl = sl.get("control") or {}
+            sid, day = ctrl.get("scope_id"), ctrl.get("billing_day")
+            if sid is None or day is None:
+                continue
+            amt_text = sl.get("amount_fraction")
+            if amt_text is not None:
+                try:
+                    amount_by_day[(str(sid), str(day))] += Fraction(str(amt_text))
+                except (ValueError, ZeroDivisionError):
+                    pass
+            b = sl.get("basis") or {}
+            if b.get("meter_id"):
+                meter_scopes[str(b["meter_id"])].add(str(sid))
+            evidence_by_day[(str(sid), str(day))].append({
+                "atom_id": sl.get("atom_id"),
+                "component_id": sl.get("component_id"),
+                "segment_id": sl.get("segment_id"),
+                "rate_id": ctrl.get("rate_id"),
+                "allocated_wh": sl.get("allocated_wh"),
+                "unit_price": sl.get("unit_price"),
+                "amount_fraction": sl.get("amount_fraction"),
+                "rounding": sl.get("rounding"),
+                "meter_id": b.get("meter_id"),
+                "binding_id": b.get("binding_id"),
+                "tariff_version": b.get("tariff_version"),
+            })
+
+        # Ensure every reported control day gets a basis record.
+        day_keys = set(ccs_by_day) | set(amount_by_day)
+        for sid, day in sorted(day_keys):
+            day_checks = ccs_by_day.get((sid, day), [])
+            reasons: list[str] = []
+            if not day_checks:
+                reasons.append("no_verified_settlement_cell")
+            component_ids: set[str] = set()
+            segment_ids: set[str] = set()
+            control_keys: list[dict] = []
+            for c in day_checks:
+                ctrl = c.get("control") or {}
+                control_keys.append(ctrl)
+                cid = c.get("component_id")
+                if cid is not None:
+                    component_ids.add(str(cid))
+                if c.get("status") != "verified":
+                    reasons.append("control_cell_not_verified")
+                if c.get("sum_matches_control") is False:
+                    reasons.append("control_sum_mismatch")
+                if c.get("component_status") != "settled":
+                    reasons.append("component_not_settled")
+            for cid in component_ids:
+                comp = comp_by_id.get(cid)
+                if comp is None:
+                    reasons.append("settlement_component_missing")
+                    continue
+                if comp.get("status") != "settled":
+                    reasons.append("connected_range_not_settled")
+                for ck in comp.get("control_keys", []):
+                    check = ccs_by_key.get((
+                        str(ck.get("scope_id")), str(ck.get("billing_day")), str(ck.get("rate_id"))
+                    ))
+                    if check is None or check.get("status") != "verified":
+                        reasons.append("related_control_cell_not_verified")
+                for seg_id in comp.get("segment_ids", []):
+                    segment_ids.add(str(seg_id))
+                    sc = seg_checks.get(seg_id)
+                    if sc is None or sc.get("status") != "verified":
+                        reasons.append("reading_segment_not_verified")
+            amount_yuan = amount_by_day.get((sid, day), Fraction(0))
+            exact_cents = amount_yuan * money_scale
+            if exact_cents < 0:
+                reasons.append("negative_system_amount")
+            rounded = _led_round_half_up_cents(exact_cents) if exact_cents >= 0 else None
+            # De-duplicate reason codes preserving order.
+            reasons = list(dict.fromkeys(reasons))
+            basis[sid][day] = {
+                "scope_id": sid,
+                "billing_day": day,
+                "openable": not reasons,
+                "block_reasons": reasons,
+                "system_amount_yuan_fraction": frac_str(amount_yuan),
+                "system_amount_exact_cents_fraction": frac_str(exact_cents),
+                "system_amount_cents_rounded": rounded,
+                "control_keys": control_keys,
+                "component_ids": sorted(component_ids),
+                "segment_ids": sorted(segment_ids),
+                "settlement_evidence": evidence_by_day.get((sid, day), []),
+            }
+
+        # Global issue attribution (same scope attribution idea as revision impact).
+        bindings: list[Binding] = []
+        issue_root = root
+        if issue_root is None:
+            audit = report.get("input_audit") or {}
+            issue_root = {"exchange_vouchers": audit.get("exchange_vouchers", [])}
+        try:
+            bindings = load_bindings(issue_root if root is not None else (settlement if isinstance(settlement, dict) else {}))
+        except Exception:
+            bindings = []
+        for issue in report.get("verification", {}).get("global_issues", []):
+            if not isinstance(issue, dict):
+                continue
+            scopes = _led_issue_scopes(issue, issue_root, bindings, meter_scopes)
+            record = {"code": issue.get("code"), "issue": issue, "scope_ids": sorted(scopes)}
+            if scopes:
+                for sid in scopes:
+                    scope_blockers[sid].append(record)
+            else:
+                global_blockers.append(record)
+
+    return {
+        "basis": {sid: dict(days) for sid, days in basis.items()},
+        "global_blockers": global_blockers,
+        "scope_blockers": {sid: items for sid, items in scope_blockers.items()},
+        "settlement_info": settlement_info,
+    }
+
+
+def _led_ingest_explicit_amounts(system_amounts: Any, basis: dict, money_scale: int) -> None:
+    items: list[tuple[str, str, Any]] = []
+    if isinstance(system_amounts, dict):
+        for key, value in system_amounts.items():
+            if isinstance(value, dict):
+                # nested {scope: {day: amount}}
+                for day, amt in value.items():
+                    items.append((str(key), str(day), amt))
+            elif isinstance(key, tuple) and len(key) == 2:
+                items.append((str(key[0]), _led_day_key(key[1] if isinstance(key[1], date) else date.fromisoformat(str(key[1]))), value))  # noqa: E501
+            elif "|" in str(key):
+                sid, day = str(key).split("|", 1)
+                items.append((sid, day, value))
+            else:
+                raise LedgerStructureError(
+                    f"system_amounts key {key!r} must be (scope, day) or 'scope|YYYY-MM-DD'"
+                )
+    else:
+        raise LedgerStructureError("system_amounts must be a mapping")
+    for sid, day, value in items:
+        if isinstance(value, dict) and ("exact_cents" in value or "rounded_cents" in value):
+            exact = Fraction(value.get("exact_cents", value.get("rounded_cents", 0)))
+            rounded = value.get("rounded_cents")
+            rec_extra = value
+        elif isinstance(value, dict) and any(
+            k in value for k in ("amount_fraction", "yuan_fraction", "system_amount_yuan", "amount_yuan")
+        ):
+            yuan = value.get("amount_fraction") or value.get("yuan_fraction") \
+                or value.get("system_amount_yuan") or value.get("amount_yuan")
+            exact = parse_rational(yuan, f"system_amounts[{sid}][{day}]") * money_scale
+            rounded = value.get("rounded_cents")
+            rec_extra = value
+        else:
+            exact = Fraction(value) if isinstance(value, Fraction) else Fraction(str(value))
+            rounded = None
+            rec_extra = {}
+        if rounded is None:
+            rounded = _led_round_half_up_cents(exact)
+        basis[sid][day] = {
+            "scope_id": sid,
+            "billing_day": day,
+            "openable": True,
+            "block_reasons": [],
+            "system_amount_yuan_fraction": frac_str(exact / money_scale),
+            "system_amount_exact_cents_fraction": frac_str(exact),
+            "system_amount_cents_rounded": int(rounded),
+            "control_keys": rec_extra.get("control_keys", []),
+            "component_ids": rec_extra.get("component_ids", []),
+            "segment_ids": rec_extra.get("segment_ids", []),
+            "settlement_evidence": rec_extra.get("settlement_evidence", []),
+            "explicit_basis": True,
+        }
+
+
+def _led_issue_scopes(
+    issue: dict,
+    root: Any,
+    bindings: list,
+    meter_scopes: dict[str, set[str]],
+) -> set[str]:
+    scopes: set[str] = set()
+    for key in ("scope_id", "scope", "settlement_scope_id"):
+        if issue.get(key):
+            scopes.add(str(issue[key]))
+    vid = issue.get("voucher_id")
+    if vid:
+        try:
+            scopes |= _rev_scope_ids_for_voucher(issue, root if isinstance(root, dict) else {}, bindings)
+        except Exception:
+            pass
+        # Fallback: voucher meters -> scopes observed on settlement slices.
+        vouchers = []
+        if isinstance(root, dict):
+            vouchers = root.get("exchange_vouchers", root.get("meter_exchanges", [])) or []
+        for v in vouchers if isinstance(vouchers, list) else []:
+            if not isinstance(v, dict):
+                continue
+            if str(v.get("voucher_id") or v.get("id") or "") != str(vid):
+                continue
+            for mkey in ("old_meter_id", "new_meter_id", "meter_id"):
+                mid = v.get(mkey)
+                if mid and str(mid) in meter_scopes:
+                    scopes |= meter_scopes[str(mid)]
+    return scopes
+
+
+_LED_STATUS_EFFECTIVE = "effective"
+_LED_STATUS_PENDING = "pending_verification"
+_LED_STATUS_LABELS = {
+    _LED_STATUS_EFFECTIVE: "已生效",
+    _LED_STATUS_PENDING: "待核",
+}
+
+
+class MakeupLedger:
+    """Auditable makeup-difference (补差) ledger.
+
+    Use :meth:`open` to create from the fixed settlement input plus the
+    non-overlapping original bills, then :meth:`receive_batch` for each actual
+    reception batch.  Instances are plain-JSON serializable via :meth:`state`
+    and can be closed/reopened with :meth:`save` / :meth:`load`.
+    """
+
+    def __init__(self, state: dict, store_path: Optional[Path | str] = None):
+        if not isinstance(state, dict) or state.get("report_type") != "makeup_ledger_state":
+            raise LedgerError("invalid ledger state object")
+        self._state = state
+        self.store_path = Path(store_path) if store_path is not None else None
+
+    # ------------------------------------------------------------------ state
+    @property
+    def state(self) -> dict:
+        return self._state
+
+    def to_state(self) -> dict:
+        return _led_deepcopy(self._state)
+
+    # ------------------------------------------------------------- opening ---
+    @classmethod
+    def open(
+        cls,
+        settlement: Any = None,
+        original_bills: Any = None,
+        *,
+        bills: Any = None,
+        settlement_report: Any = None,
+        system_amounts: Any = None,
+        ledger_id: Optional[str] = None,
+        money_scale: int = 100,
+        out_of_opening_policy: str = "reject",
+        store_path: Optional[Path | str] = None,
+        persist: bool = False,
+        opening_batch_id: str = _LEDGER_OPENING_BATCH,
+        created_at: Optional[str] = None,
+        **_ignored: Any,
+    ) -> "MakeupLedger":
+        if out_of_opening_policy not in ("reject", "pending"):
+            raise LedgerStructureError("out_of_opening_policy must be 'reject' or 'pending'")
+        basis_pack = ledger_build_basis(
+            settlement=settlement,
+            settlement_report=settlement_report,
+            system_amounts=system_amounts,
+            money_scale=money_scale,
+        )
+        raw_lines, skipped = _led_flatten_bill_lines(
+            original_bills if original_bills is not None else bills, "original_bills"
+        )
+        # Unique original line numbers.
+        seen: set[str] = set()
+        dup: list[str] = []
+        for ln in raw_lines:
+            if ln["line_id"] in seen and ln["line_id"] not in dup:
+                dup.append(ln["line_id"])
+            seen.add(ln["line_id"])
+        if dup:
+            raise LedgerStructureError(f"original bill line ids must be unique; duplicates: {dup}")
+
+        opening_rejections: list[dict] = []
+        if basis_pack["global_blockers"]:
+            opening_rejections.append({
+                "code": "unattributable_settlement_blocking_evidence",
+                "blocking_evidence": basis_pack["global_blockers"],
+                "message": "baseline reports settlement blocking evidence that cannot be attributed to any scope",
+            })
+
+        basis = basis_pack["basis"]
+        # Validate every covered day is openable and build domain/attribution.
+        domain_days: dict[str, list[str]] = defaultdict(list)
+        line_records: dict[str, dict] = {}
+        attribution: dict[str, dict[str, str]] = defaultdict(dict)
+        daily: dict[str, dict[str, dict]] = defaultdict(dict)
+        for ln in raw_lines:
+            sid = ln["scope_id"]
+            s = date.fromisoformat(ln["start_day"])
+            e = date.fromisoformat(ln["end_day"])
+            days = _led_days(s, e)
+            weights = {d.isoformat(): cls._basis_weight(basis, sid, d.isoformat()) for d in days}
+            bad_days: list[dict] = []
+            for d in days:
+                rec = basis.get(sid, {}).get(d.isoformat())
+                if rec is None:
+                    bad_days.append({"billing_day": d.isoformat(), "reasons": ["no_settlement_basis"]})
+                elif not rec.get("openable"):
+                    bad_days.append({"billing_day": d.isoformat(), "reasons": rec.get("block_reasons", [])})
+            if bad_days:
+                opening_rejections.append({
+                    "code": "bill_line_covers_non_openable_days",
+                    "line_id": ln["line_id"],
+                    "scope_id": sid,
+                    "bad_days": bad_days,
+                })
+                continue
+            app = ledger_apportion_by_weights(ln["amount_cents"], days, weights)
+            record = {
+                "line_id": ln["line_id"],
+                "kind": "original",
+                "scope_id": sid,
+                "start_day": ln["start_day"],
+                "end_day": ln["end_day"],
+                "amount_cents": ln["amount_cents"],
+                "fee_type": ln.get("fee_type"),
+                "source_exchange_id": None,
+                "bill_id": ln.get("bill_id"),
+                "apportionment": app,
+            }
+            line_records[ln["line_id"]] = record
+            domain_days[sid].extend(d.isoformat() for d in days)
+
+        # Overlap check across original lines of the same scope.
+        covered: dict[str, dict[str, str]] = defaultdict(dict)
+        for ln in raw_lines:
+            sid = ln["scope_id"]
+            for day in _led_days(date.fromisoformat(ln["start_day"]), date.fromisoformat(ln["end_day"])):
+                key = day.isoformat()
+                if key in covered[sid]:
+                    opening_rejections.append({
+                        "code": "original_bill_lines_overlap",
+                        "scope_id": sid,
+                        "billing_day": key,
+                        "line_ids": [covered[sid][key], ln["line_id"]],
+                    })
+                else:
+                    covered[sid][key] = ln["line_id"]
+
+        if opening_rejections:
+            report = {
+                "report_type": "makeup_ledger_opening",
+                "status": "rejected",
+                "ledger_id": ledger_id,
+                "rule_version": MAKEUP_LEDGER_RULE_VERSION,
+                "rejections": opening_rejections,
+                "global_blocking_evidence": basis_pack["global_blockers"],
+                "settlement_overall_status": basis_pack["settlement_info"].get("overall_status"),
+                "message": "makeup ledger opening rejected; no ledger was created",
+            }
+            raise LedgerOpeningRejected(report)
+
+        # Build attribution + daily from the validated original lines.
+        for lid, rec in line_records.items():
+            sid = rec["scope_id"]
+            for day_iso, cents in rec["apportionment"].items():
+                attribution[sid][day_iso] = lid
+                basis_rec = basis[sid][day_iso]
+                sys_cents = int(basis_rec["system_amount_cents_rounded"])
+                daily[sid][day_iso] = {
+                    "scope_id": sid,
+                    "billing_day": day_iso,
+                    "line_id": lid,
+                    "line_kind": "original",
+                    "apportioned_amount_cents": cents,
+                    "system_amount_cents": sys_cents,
+                    "daily_difference_cents": cents - sys_cents,
+                }
+        for sid in list(domain_days):
+            domain_days[sid] = sorted(set(domain_days[sid]))
+
+        ts = created_at or datetime.now(timezone.utc).isoformat()
+        state: dict[str, Any] = {
+            "report_type": "makeup_ledger_state",
+            "rule_version": MAKEUP_LEDGER_RULE_VERSION,
+            "ledger_id": ledger_id or f"ML-{hashlib.sha1(json.dumps([l['line_id'] for l in raw_lines]).encode()).hexdigest()[:10]}",  # noqa: E501
+            "created_at": ts,
+            "current_batch_id": opening_batch_id,
+            "opening_batch_id": opening_batch_id,
+            "out_of_opening_policy": out_of_opening_policy,
+            "money_scale": money_scale,
+            "settlement_info": basis_pack["settlement_info"],
+            "basis": basis,
+            "scope_blockers": basis_pack["scope_blockers"],
+            "domain_days": dict(domain_days),
+            "lines": line_records,
+            "original_line_ids": [ln["line_id"] for ln in raw_lines],
+            "attribution": {s: dict(d) for s, d in attribution.items()},
+            "daily": {s: dict(d) for s, d in daily.items()},
+            "orders": {},
+            "seq_index": {},
+            "batch_ids": {},
+            "batches": [],
+            "skipped_non_energy_original_lines": skipped,
+        }
+        ledger = cls(state, store_path=store_path)
+        opening_view = ledger._build_view(
+            batch_id=opening_batch_id,
+            batch_index=0,
+            received_at=ts,
+            postings=[],
+            daily_changes=[],
+            changed_adjudications=[],
+            new_order_rulings=[],
+            considered_order_ids=[],
+            trigger_order_ids=[],
+            batch_note="opening",
+        )
+        opening_record = {
+            "batch_id": opening_batch_id,
+            "batch_index": 0,
+            "received_at": ts,
+            "kind": "opening",
+            "exchange_ids": [],
+            "new_order_ids": [],
+            "idempotent_order_ids": [],
+            "status": "opened",
+            "totals": opening_view["totals"],
+            "view": opening_view,
+        }
+        state["batches"].append(opening_record)
+        state["batch_ids"][opening_batch_id] = 0
+        ledger._opening_report = {
+            "report_type": "makeup_ledger_opening",
+            "status": "opened",
+            "ledger_id": state["ledger_id"],
+            "batch_id": opening_batch_id,
+            "original_line_count": len(raw_lines),
+            "opened_scope_days": {s: len(ds) for s, ds in domain_days.items()},
+            "skipped_non_energy_lines": skipped,
+            "totals": opening_view["totals"],
+        }
+        if persist or store_path is not None:
+            ledger.save(store_path)
+        return ledger
+
+    @staticmethod
+    def _basis_weight(basis: dict, scope: str, day_iso: str) -> Fraction:
+        rec = basis.get(scope, {}).get(day_iso)
+        if rec is None:
+            return Fraction(0)
+        return Fraction(rec["system_amount_exact_cents_fraction"])
+
+    @property
+    def opening_report(self) -> dict:
+        return getattr(self, "_opening_report", {"status": "opened"})
+
+    # ------------------------------------------------------------ persist ---
+    def save(self, path: Optional[Path | str] = None) -> Path:
+        target = Path(path) if path is not None else self.store_path
+        if target is None:
+            raise LedgerError("save path is required (no store_path associated with this ledger)")
+        if target.is_dir() or target.suffix == "":
+            target = target / "makeup_ledger_state.json"
+        target.parent.mkdir(parents=True, exist_ok=True)
+        tmp = target.with_name(target.name + ".tmp")
+        tmp.write_text(
+            json.dumps(self._state, ensure_ascii=False, indent=2, sort_keys=False),
+            encoding="utf-8",
+        )
+        tmp.replace(target)
+        self.store_path = target
+        return target
+
+    @classmethod
+    def load(cls, path: Path | str) -> "MakeupLedger":
+        p = Path(path)
+        if p.is_dir():
+            p = p / "makeup_ledger_state.json"
+        state = json.loads(p.read_text(encoding="utf-8"))
+        return cls(state, store_path=p)
+
+    # ----------------------------------------------------------- queries ----
+    def list_batches(self) -> list[dict]:
+        return [
+            {k: v for k, v in b.items() if k != "view"}
+            for b in self._state["batches"]
+        ]
+
+    history = list_batches
+
+    def get_batch_record(self, batch_id: Any = None) -> dict:
+        batches = self._state["batches"]
+        if batch_id is None or batch_id in ("latest", "current", -1):
+            return batches[-1]
+        if batch_id in ("opening", self._state.get("opening_batch_id")):
+            return batches[0]
+        if isinstance(batch_id, int):
+            return batches[batch_id]
+        if isinstance(batch_id, str) and batch_id.lstrip("-").isdigit():
+            return batches[int(batch_id)]
+        idx = self._state["batch_ids"].get(str(batch_id))
+        if idx is None:
+            raise LedgerError(f"unknown batch_id {batch_id!r}; known: {list(self._state['batch_ids'])}")
+        return batches[idx]
+
+    def get_batch(self, batch_id: Any = None) -> dict:
+        """Full retained batch record including the joined finance view."""
+        record = _led_deepcopy(self.get_batch_record(batch_id))
+        record["view"] = self.view(record.get("batch_id"))
+        return record
+
+    def view(self, batch_id: Any = None, *, scope_id: Optional[str] = None) -> dict:
+        """Finance view retained after a reception (default: current/latest)."""
+        record = self.get_batch_record(batch_id)
+        out = _led_deepcopy(record["view"])
+        self._enrich_view(out, record.get("batch_index"))
+        if scope_id is not None:
+            out["effective_attribution"] = [
+                r for r in out["effective_attribution"] if r["scope_id"] == scope_id
+            ]
+            out["bill_attribution"] = out["effective_attribution"]
+            out["daily_ledger"] = [r for r in out["daily_ledger"] if r["scope_id"] == scope_id]
+            out["daily_apportionments"] = out["daily_ledger"]
+            out["daily_differences"] = [
+                r for r in out["daily_differences"] if r["scope_id"] == scope_id
+            ]
+        return out
+
+    snapshot = view
+    get_view = view
+
+    def attribution(self, batch_id: Any = None, *, scope_id: Optional[str] = None) -> list[dict]:
+        return self.view(batch_id, scope_id=scope_id)["effective_attribution"]
+
+    def apportionments(self, batch_id: Any = None, *, scope_id: Optional[str] = None) -> list[dict]:
+        return self.view(batch_id, scope_id=scope_id)["daily_ledger"]
+
+    def postings_history(self) -> list[dict]:
+        out: list[dict] = []
+        for b in self._state["batches"]:
+            for p in b.get("view", {}).get("postings", []):
+                row = _led_deepcopy(p)
+                row["batch_id"] = b["batch_id"]
+                row["batch_index"] = b["batch_index"]
+                out.append(row)
+        return out
+
+    def get_order(self, exchange_id: str) -> dict:
+        if exchange_id not in self._state["orders"]:
+            raise LedgerError(f"unknown exchange order {exchange_id!r}")
+        return _led_deepcopy(self._order_view(self._state["orders"][exchange_id], include_history=True))
+
+    # ------------------------------------------------------- reception -----
+    def receive_batch(
+        self,
+        batch: Any = None,
+        *,
+        orders: Any = None,
+        exchanges: Any = None,
+        items: Any = None,
+        batch_id: Optional[str] = None,
+        received_at: Optional[str] = None,
+        persist: bool = True,
+        **kwargs: Any,
+    ) -> dict:
+        raw_orders, meta = _led_coerce_reception(
+            batch if batch is not None else (orders if orders is not None else (exchanges if exchanges is not None else items)),  # noqa: E501
+            batch_id=batch_id,
+            received_at=received_at,
+            extra=kwargs,
+        )
+        # All parsing and uniqueness validation finishes (and raises) before
+        # any state mutation, so a rejected batch leaves this object untouched.
+        # Re-adjudication itself only walks overlap-affected later orders.
+        result = _led_apply_reception(self._state, raw_orders, meta)
+        if persist and self.store_path is not None:
+            self.save()
+        return result
+
+    # Common verb aliases (assigned additional aliases after the class too).
+    def receive(self, *a: Any, **kw: Any) -> dict:
+        return self.receive_batch(*a, **kw)
+
+    def accept_batch(self, *a: Any, **kw: Any) -> dict:
+        return self.receive_batch(*a, **kw)
+
+    # ------------------------------------------------------- audit refold --
+    def full_refold(self) -> dict:
+        """Re-adjudicate every received order by effective seq from opening.
+
+        Returns ``{"attribution":..., "daily":...}``.  This is the spec's
+        reference semantics and a test/audit tool; normal reception does not
+        call it.
+        """
+        attr: dict[str, dict[str, Optional[str]]] = defaultdict(dict)
+        daily: dict[str, dict[str, dict]] = defaultdict(dict)
+        for lid in self._state["original_line_ids"]:
+            rec = self._state["lines"][lid]
+            sid = rec["scope_id"]
+            for day_iso, cents in rec["apportionment"].items():
+                attr[sid][day_iso] = lid
+                sys_cents = int(self._state["basis"][sid][day_iso]["system_amount_cents_rounded"])
+                daily[sid][day_iso] = {
+                    "scope_id": sid, "billing_day": day_iso, "line_id": lid,
+                    "apportioned_amount_cents": cents, "system_amount_cents": sys_cents,
+                    "daily_difference_cents": cents - sys_cents,
+                }
+        orders = sorted(self._state["orders"].values(), key=lambda o: (o["effective_seq"], o["exchange_id"]))
+        rulings = {}
+        for o in orders:
+            status, reasons, prior = _led_adjudicate(draft_like_basis(self._state), o, attr)
+            rulings[o["exchange_id"]] = status
+            if status == _LED_STATUS_EFFECTIVE:
+                _led_apply_order_to_maps(self._state, o, attr, daily)
+        return {
+            "rulings": rulings,
+            "attribution": {s: {d: l for d, l in days.items()} for s, days in attr.items()},
+            "daily": {s: dict(days) for s, days in daily.items()},
+        }
+
+    def verify_incremental_matches_full_refold(self) -> dict:
+        ref = self.full_refold()
+        problems: list[str] = []
+        cur_attr = self._state["attribution"]
+        for sid, days in ref["attribution"].items():
+            for day, lid in days.items():
+                if cur_attr.get(sid, {}).get(day) != lid:
+                    problems.append(f"attribution mismatch {sid} {day}: incremental={cur_attr.get(sid, {}).get(day)} full={lid}")  # noqa: E501
+        for sid, days in ref["daily"].items():
+            for day, rec in days.items():
+                cur = self._state["daily"].get(sid, {}).get(day)
+                if cur is None or cur.get("apportioned_amount_cents") != rec["apportioned_amount_cents"]:
+                    problems.append(f"daily mismatch {sid} {day}")
+        ref_rulings = ref["rulings"]
+        for oid, status in ref_rulings.items():
+            if self._state["orders"][oid]["status"] != status:
+                problems.append(f"ruling mismatch {oid}: incremental={self._state['orders'][oid]['status']} full={status}")  # noqa: E501
+        return {"matches": not problems, "problems": problems}
+
+    # ------------------------------------------------------- view builder --
+    def _order_view(self, o: dict, *, include_history: bool = False) -> dict:
+        out = {
+            "exchange_id": o["exchange_id"],
+            "effective_seq": o["effective_seq"],
+            "scope_id": o["scope_id"],
+            "start_day": o["start_day"],
+            "end_day": o["end_day"],
+            "interval": [o["start_day"], o["end_day"]],
+            "old_line_ids": list(o["old_line_ids"]),
+            "new_line_ids": [ln["line_id"] for ln in o["new_lines"]],
+            "new_lines": _led_deepcopy(o["new_lines"]),
+            "old_line_records": _led_line_refs(self._state, list(o["old_line_ids"])),
+            "new_line_records": [
+                _led_deepcopy(self._state["lines"][ln["line_id"]])
+                for ln in o["new_lines"]
+                if ln["line_id"] in self._state.get("lines", {})
+            ],
+            "content_hash": o["content_hash"],
+            "status": o["status"],
+            "adjudication_status": o["status"],
+            "effective": o["status"] == _LED_STATUS_EFFECTIVE,
+            "pending": o["status"] == _LED_STATUS_PENDING,
+            "status_label": _LED_STATUS_LABELS[o["status"]],
+            "adjudication": _led_deepcopy(o.get("adjudication")),
+            "received_batch_id": o.get("received_batch_id"),
+            "received_batch_index": o.get("received_batch_index"),
+            "received_at": o.get("received_at"),
+        }
+        if include_history:
+            out["ruling_history"] = _led_deepcopy(o.get("ruling_history", []))
+        return out
+
+    def _build_view(
+        self,
+        *,
+        batch_id: str,
+        batch_index: int,
+        received_at: str,
+        postings: list[dict],
+        daily_changes: list[dict],
+        changed_adjudications: list[dict],
+        new_order_rulings: list[dict],
+        considered_order_ids: list[str],
+        trigger_order_ids: list[str],
+        reaffirmed_adjudications: Optional[list[dict]] = None,
+        propagation_edges: Optional[list[dict]] = None,
+        batch_note: Optional[str] = None,
+    ) -> dict:
+        st = self._state
+        attribution_rows: list[dict] = []
+        daily_rows: list[dict] = []
+        for sid in sorted(st["attribution"]):
+            for day in sorted(st["attribution"][sid]):
+                lid = st["attribution"][sid][day]
+                line = st["lines"].get(lid, {})
+                attribution_rows.append({
+                    "scope_id": sid,
+                    "billing_day": day,
+                    "line_id": lid,
+                    "line_kind": line.get("kind"),
+                    "source_exchange_id": line.get("source_exchange_id"),
+                })
+                rec = st["daily"][sid][day]
+                basis_rec = st.get("basis", {}).get(sid, {}).get(day, {})
+                daily_rows.append({
+                    **_led_deepcopy(rec),
+                    "basis": {
+                        "openable": basis_rec.get("openable"),
+                        "system_amount_yuan_fraction": basis_rec.get("system_amount_yuan_fraction"),
+                        "system_amount_exact_cents_fraction": basis_rec.get("system_amount_exact_cents_fraction"),
+                        "system_amount_cents_rounded": basis_rec.get("system_amount_cents_rounded"),
+                        "control_keys": basis_rec.get("control_keys", []),
+                        "component_ids": basis_rec.get("component_ids", []),
+                        "segment_ids": basis_rec.get("segment_ids", []),
+                        "settlement_evidence": basis_rec.get("settlement_evidence", []),
+                    },
+                })
+        total_app = sum(r["apportioned_amount_cents"] for r in daily_rows)
+        total_sys = sum(r["system_amount_cents"] for r in daily_rows)
+        opening_total_diff = sum(
+            ln["amount_cents"] for ln in st["lines"].values() if ln["kind"] == "original"
+        ) - total_sys  # system basis is fixed; opening diff total uses original billed amounts
+        posting_delta = sum(p["delta_cents"] for p in postings)
+        effective_orders = [oid for oid, o in st["orders"].items() if o["status"] == _LED_STATUS_EFFECTIVE]
+        pending_orders = [oid for oid, o in st["orders"].items() if o["status"] == _LED_STATUS_PENDING]
+        view = {
+            "report_type": "makeup_ledger_view",
+            "ledger_id": st["ledger_id"],
+            "rule_version": MAKEUP_LEDGER_RULE_VERSION,
+            "batch_id": batch_id,
+            "batch_index": batch_index,
+            "received_at": received_at,
+            "note": batch_note,
+            "effective_attribution": attribution_rows,
+            "daily_ledger": daily_rows,
+            # Vocabulary aliases and the compact daily_differences projection are
+            # attached by _enrich_view() on query so snapshots store each list once.
+            "line_catalog": {},  # joined from immutable history tables on query
+            "bill_lines": {},
+            "exchange_orders": {},  # reconstructed as-of batch on query
+            "exchange_order_ids": [
+                oid for oid, _ in sorted(st["orders"].items(), key=lambda kv: kv[1]["effective_seq"])
+            ],
+            "normalized_snapshot": True,
+            "changed_adjudications": changed_adjudications,
+            "readjudications": changed_adjudications,  # vocabulary alias
+            "reaffirmed_adjudications": reaffirmed_adjudications or [],
+            "propagation_edges": propagation_edges or [],
+            "new_order_rulings": new_order_rulings,
+            "considered_order_ids": considered_order_ids,
+            "trigger_order_ids": trigger_order_ids,
+            "postings": postings,
+            "daily_difference_postings": postings,  # vocabulary alias
+            "makeup_entries": postings,  # vocabulary alias
+            "daily_changes": daily_changes,
+            "totals": {
+                "day_count": len(daily_rows),
+                "apportioned_amount_cents": total_app,
+                "system_amount_cents": total_sys,
+                "current_daily_difference_cents": total_app - total_sys,
+                "opening_billed_cents": sum(
+                    ln["amount_cents"] for ln in st["lines"].values() if ln["kind"] == "original"
+                ),
+                "opening_daily_difference_cents": opening_total_diff,
+                "batch_posting_delta_cents": posting_delta,
+                "supplementary_cents": sum(p["delta_cents"] for p in postings if p["delta_cents"] > 0),
+                "reversal_cents": sum(-p["delta_cents"] for p in postings if p["delta_cents"] < 0),
+                "posting_count": sum(1 for p in postings if p["delta_cents"] != 0),
+                "effective_order_count": len(effective_orders),
+                "pending_order_count": len(pending_orders),
+            },
+            # Immutable fixed settlement basis; joined back by _enrich_view().
+            "settlement_basis": {},
+            "settlement_audit": _led_deepcopy(st["settlement_info"]),
+        }
+        return view
+
+    def _order_view_at(self, o: dict, batch_index: int) -> dict:
+        """Order view with status/adjudication projected as of ``batch_index``."""
+        view = self._order_view(o)
+        history = [
+            h for h in o.get("ruling_history", [])
+            if int(h.get("batch_index", o.get("received_batch_index", 1))) <= batch_index
+        ]
+        if history:
+            h = history[-1]
+            status = h["status"]
+            view["status"] = status
+            view["adjudication_status"] = status
+            view["effective"] = status == _LED_STATUS_EFFECTIVE
+            view["pending"] = status == _LED_STATUS_PENDING
+            view["status_label"] = _LED_STATUS_LABELS[status]
+            view["adjudication"] = {
+                "status": status,
+                "reasons": _led_deepcopy(h.get("reasons", [])),
+                "adjudicated_in_batch": h.get("batch_id"),
+                "adjudicated_at": h.get("received_at"),
+            }
+        return view
+
+    def _enrich_view(self, view: dict, batch_index: Optional[int] = None) -> dict:
+        """Join a normalized stored snapshot with immutable basis/lines/history."""
+        if batch_index is None:
+            batch_index = int(view.get("batch_index", len(self._state["batches"]) - 1))
+        st = self._state
+        catalog = {
+            lid: _led_deepcopy(rec)
+            for lid, rec in st["lines"].items()
+            if int(rec.get("created_batch_index", 0)) <= batch_index
+        }
+        view["line_catalog"] = catalog
+        view["bill_lines"] = catalog
+        view["settlement_basis"] = _led_deepcopy(st["basis"])
+        orders: dict[str, dict] = {}
+        for oid, o in sorted(st["orders"].items(), key=lambda kv: kv[1]["effective_seq"]):
+            if int(o.get("received_batch_index", 1)) <= batch_index:
+                orders[oid] = self._order_view_at(o, batch_index)
+        view["exchange_orders"] = orders
+        # In-memory vocabulary aliases (same objects; not duplicated in stored JSON).
+        view["bill_attribution"] = view["effective_attribution"]
+        view["daily_apportionments"] = view["daily_ledger"]
+        view["daily_differences"] = [
+            {
+                "scope_id": r["scope_id"],
+                "billing_day": r["billing_day"],
+                "daily_difference_cents": r["daily_difference_cents"],
+                "line_id": r["line_id"],
+            }
+            for r in view["daily_ledger"]
+        ]
+        view["normalized_snapshot"] = False
+        return view
+
+
+# ---------------------------------------------------------------------------
+# Reception coercion
+# ---------------------------------------------------------------------------
+
+def _led_coerce_reception(
+    payload: Any,
+    *,
+    batch_id: Optional[str],
+    received_at: Optional[str],
+    extra: dict,
+) -> tuple[list[dict], dict]:
+    meta = {
+        "batch_id": batch_id or extra.get("reception_id") or extra.get("batch_no"),
+        "received_at": received_at or extra.get("received_date") or extra.get("batch_received_at"),
+    }
+    if payload is None:
+        # Allow keyword-only style callers to pass via extra containers.
+        for key in ("exchange_orders", "batch", "reception", "data"):
+            if key in extra and extra[key] is not None:
+                payload = extra[key]
+                break
+    if isinstance(payload, list):
+        return payload, meta
+    if isinstance(payload, dict):
+        # Nested envelope convenience: {"reception": {...}} / {"batch": {...}}.
+        for wrap_key in ("reception", "batch", "data", "payload"):
+            inner = payload.get(wrap_key)
+            if isinstance(inner, dict) and any(
+                k in inner for k in ("exchanges", "exchange_orders", "orders", "items", "effective_seq")
+            ):
+                meta["batch_id"] = meta["batch_id"] or payload.get("batch_id") or payload.get("reception_id")
+                return _led_coerce_reception(inner, batch_id=meta["batch_id"],
+                                             received_at=meta["received_at"], extra={})
+        for key in ("exchanges", "exchange_orders", "orders", "items", "exchange_list", "换单"):
+            if isinstance(payload.get(key), list):
+                meta["batch_id"] = meta["batch_id"] or payload.get("batch_id") or payload.get("reception_id") or payload.get("batch_no")  # noqa: E501
+                meta["received_at"] = meta["received_at"] or payload.get("received_at") or payload.get("received_date")  # noqa: E501
+                return payload[key], meta
+        # A single exchange order?
+        if any(k in payload for k in ("effective_seq", "effective_sequence", "seq", "生效序号")):
+            return [payload], meta
+        raise LedgerStructureError(
+            "receive payload must be a list of exchange orders or an object with an 'exchanges' list"
+        )
+    raise LedgerStructureError("receive payload must be a list, object, or single exchange order")
+
+
+# ---------------------------------------------------------------------------
+# Adjudication / incremental re-processing
+# ---------------------------------------------------------------------------
+
+def draft_like_basis(state: dict) -> dict:
+    return state
+
+
+def _led_enrich_state_view(state: dict, view: dict, batch_index: Optional[int] = None) -> dict:
+    """Enrich a normalized snapshot without constructing a public ledger."""
+    wrapper = MakeupLedger.__new__(MakeupLedger)
+    wrapper._state = state
+    wrapper.store_path = None
+    return wrapper._enrich_view(view, batch_index)
+
+
+def _led_adjudicate(state: dict, order: dict, attr: dict) -> tuple[str, list[dict], dict[str, Optional[str]]]:
+    """Apply the effective-sequence precondition against a fold state.
+
+    Returns ``(status, reasons, prior_line_by_day)``.  Does not mutate.
+    """
+    sid = order["scope_id"]
+    days = _led_days(date.fromisoformat(order["start_day"]), date.fromisoformat(order["end_day"]))
+    scope_attr = attr.get(sid, {})
+    old_ids = list(order["old_line_ids"])
+    old_set = set(old_ids)
+    prior: dict[str, Optional[str]] = {}
+    bad_days: list[dict] = []
+    hit: dict[str, int] = {oid: 0 for oid in old_ids}
+    domain = set(state.get("domain_days", {}).get(sid, []))
+    policy = state.get("out_of_opening_policy", "reject")
+    outside_days: list[str] = []
+    for d in days:
+        iso = d.isoformat()
+        current = scope_attr.get(iso)
+        prior[iso] = current
+        if iso not in domain:
+            outside_days.append(iso)
+        if current in old_set:
+            hit[current] += 1
+        else:
+            bad_days.append({
+                "billing_day": iso,
+                "current_line_id": current,
+                "listed_old_line_ids": old_ids,
+            })
+    reasons: list[dict] = []
+    if outside_days and policy == "pending":
+        reasons.append({
+            "code": "interval_day_outside_opening",
+            "message": "some interval days are outside the opened ledger domain",
+            "days": outside_days,
+        })
+    if bad_days:
+        reasons.append({
+            "code": "day_not_attributed_to_listed_old_line",
+            "message": "not every interval day is currently attributed to one of the listed old lines",
+            "bad_days": bad_days,
+        })
+    for oid in old_ids:
+        if hit[oid] == 0:
+            exists = oid in state.get("lines", {})
+            reasons.append({
+                "code": "old_line_has_no_hit_day",
+                "old_line_id": oid,
+                "line_known_to_ledger": exists,
+                "message": (
+                    "listed old line does not hit a single interval day under current attribution"
+                    + ("" if exists else " (line has not been received yet)")
+                ),
+            })
+    effective = not reasons
+    status = _LED_STATUS_EFFECTIVE if effective else _LED_STATUS_PENDING
+    return status, reasons, prior
+
+
+def _led_sync_daily(state: dict, scope: str, day_iso: str, attr: dict, daily: dict) -> None:
+    lid = attr.get(scope, {}).get(day_iso)
+    if lid is None:
+        daily.get(scope, {}).pop(day_iso, None)
+        return
+    line = state["lines"][lid]
+    cents = line["apportionment"][day_iso]
+    sys_cents = int(state["basis"][scope][day_iso]["system_amount_cents_rounded"])
+    daily.setdefault(scope, {})[day_iso] = {
+        "scope_id": scope,
+        "billing_day": day_iso,
+        "line_id": lid,
+        "line_kind": line.get("kind"),
+        "apportioned_amount_cents": cents,
+        "system_amount_cents": sys_cents,
+        "daily_difference_cents": cents - sys_cents,
+    }
+
+
+def _led_apply_order_to_maps(state: dict, order: dict, attr: dict, daily: dict) -> None:
+    sid = order["scope_id"]
+    attr.setdefault(sid, {})
+    for line in order["new_lines"]:
+        for day_iso, cents in line["apportionment"].items():
+            attr[sid][day_iso] = line["line_id"]
+    for d in _led_days(date.fromisoformat(order["start_day"]), date.fromisoformat(order["end_day"])):
+        _led_sync_daily(state, sid, d.isoformat(), attr, daily)
+
+
+def _led_rollback_order(state: dict, order: dict) -> None:
+    """Restore the pre-order attribution image stored at adjudication time."""
+    sid = order["scope_id"]
+    prior = (order.get("adjudication") or {}).get("prior_line_by_day") or {}
+    for day_iso, prior_lid in prior.items():
+        if prior_lid is None:
+            state["attribution"].get(sid, {}).pop(day_iso, None)
+            state["daily"].get(sid, {}).pop(day_iso, None)
+        else:
+            state["attribution"].setdefault(sid, {})[day_iso] = prior_lid
+            _led_sync_daily(state, sid, day_iso, state["attribution"], state["daily"])
+
+
+def _led_affected_order_ids(state: dict, seed_ids: list[str]) -> tuple[set[str], list[dict]]:
+    """New orders plus later same-scope orders reachable by interval overlap.
+
+    Edge ``r -> q`` exists when ``seq(q) > seq(r)`` and their half-open
+    intervals overlap in the same scope.  This is exactly the transitive
+    date-overlap influence channel.  Returns the id set and propagation edges.
+    """
+    orders = list(state["orders"].values())
+    by_id = state["orders"]
+    result: set[str] = set(seed_ids)
+    edges: list[dict] = []
+    edge_keys: set[tuple[str, str]] = set()
+    changed = True
+    while changed:
+        changed = False
+        for rid in list(result):
+            r = by_id[rid]
+            rs, re_ = date.fromisoformat(r["start_day"]), date.fromisoformat(r["end_day"])
+            for q in orders:
+                qid = q["exchange_id"]
+                if q["effective_seq"] <= r["effective_seq"]:
+                    continue
+                if q["scope_id"] != r["scope_id"]:
+                    continue
+                qs, qe = date.fromisoformat(q["start_day"]), date.fromisoformat(q["end_day"])
+                if max(rs, qs) < min(re_, qe):
+                    ekey = (rid, qid)
+                    if ekey not in edge_keys:
+                        edge_keys.add(ekey)
+                        edges.append({
+                            "from_exchange_id": rid,
+                            "to_exchange_id": qid,
+                            "scope_id": r["scope_id"],
+                            "overlap_days": sorted(
+                                d.isoformat()
+                                for d in _led_days(max(rs, qs), min(re_, qe))
+                            ),
+                        })
+                    if qid not in result:
+                        result.add(qid)
+                        changed = True
+    return result, edges
+
+
+def _led_apply_reception(draft: dict, raw_orders: list[dict], meta: dict) -> dict:
+    path = "receive_batch"
+    # ---- Phase 1: parse every item structurally (all-or-nothing) ----------
+    parsed: list[dict] = []
+    rejections: list[dict] = []
+    for i, raw in enumerate(raw_orders):
+        try:
+            parsed.append(ledger_parse_exchange_order(raw, f"exchanges[{i}]"))
+        except LedgerStructureError as exc:
+            rejections.append({"index": i, "code": "invalid_structure", "reason": str(exc)})
+    if rejections:
+        raise LedgerBatchRejected({
+            "report_type": "makeup_ledger_batch_result",
+            "status": "rejected",
+            "error": "structurally invalid exchange input; batch not accepted",
+            "rejections": rejections,
+        })
+
+    # ---- Phase 2: in-batch identity / sequence uniqueness -----------------
+    ids_seen: dict[str, dict] = {}
+    for p in parsed:
+        exid = p["exchange_id"]
+        if exid in ids_seen and ids_seen[exid]["content_hash"] != p["content_hash"]:
+            rejections.append({
+                "code": "duplicate_exchange_id_conflicting_content_in_batch",
+                "exchange_id": exid,
+            })
+        ids_seen[exid] = p
+    seq_to_id_batch: dict[int, str] = {}
+    for p in parsed:
+        seq = p["effective_seq"]
+        if seq in seq_to_id_batch and seq_to_id_batch[seq] != p["exchange_id"]:
+            rejections.append({
+                "code": "duplicate_effective_seq_in_batch",
+                "effective_seq": seq,
+                "exchange_ids": [seq_to_id_batch[seq], p["exchange_id"]],
+            })
+        seq_to_id_batch[seq] = p["exchange_id"]
+    if rejections:
+        raise LedgerBatchRejected({
+            "report_type": "makeup_ledger_batch_result",
+            "status": "rejected",
+            "error": "batch identity/sequence rules violated; batch not accepted",
+            "rejections": rejections,
+        })
+    # Identical repetition of the same exchange id inside one batch is one item.
+    uniq_parsed: dict[str, dict] = {}
+    for p in parsed:
+        uniq_parsed.setdefault(p["exchange_id"], p)
+    parsed = list(uniq_parsed.values())
+
+    # ---- Phase 3: idempotency / conflicts against the ledger --------------
+    duplicate_ids: list[str] = []
+    new_contents: list[dict] = []
+    for p in parsed:
+        exid = p["exchange_id"]
+        existing = draft["orders"].get(exid)
+        if existing is not None:
+            if existing["content_hash"] == p["content_hash"]:
+                duplicate_ids.append(exid)
+                continue
+            rejections.append({
+                "code": "exchange_id_reused_with_changed_content",
+                "exchange_id": exid,
+                "message": "a valid id may only be resent with identical content; changed content is rejected",
+            })
+            continue
+        if str(p["effective_seq"]) in draft["seq_index"]:
+            other = draft["seq_index"][str(p["effective_seq"])]
+            rejections.append({
+                "code": "effective_seq_already_used",
+                "effective_seq": p["effective_seq"],
+                "exchange_id": exid,
+                "existing_exchange_id": other,
+            })
+        # New line ids must be globally unique across the whole ledger.
+        for ln in p["new_lines"]:
+            lid = ln["line_id"]
+            owner = draft["lines"].get(lid)
+            if owner is not None:
+                rejections.append({
+                    "code": "new_line_id_not_unique",
+                    "line_id": lid,
+                    "exchange_id": exid,
+                    "owned_by_exchange": owner.get("source_exchange_id"),
+                })
+        new_contents.append(p)
+
+    # New-line collisions inside this batch across distinct orders.
+    new_line_owner: dict[str, str] = {}
+    for p in new_contents:
+        for ln in p["new_lines"]:
+            lid = ln["line_id"]
+            if lid in new_line_owner and new_line_owner[lid] != p["exchange_id"]:
+                rejections.append({
+                    "code": "new_line_id_not_unique_in_batch",
+                    "line_id": lid,
+                    "exchange_ids": [new_line_owner[lid], p["exchange_id"]],
+                })
+            new_line_owner[lid] = p["exchange_id"]
+
+    # Interval must belong to the opened domain under the strict policy.
+    if draft.get("out_of_opening_policy", "reject") == "reject":
+        for p in new_contents:
+            domain = set(draft.get("domain_days", {}).get(p["scope_id"], []))
+            days = {d.isoformat() for d in _led_days(
+                date.fromisoformat(p["start_day"]), date.fromisoformat(p["end_day"])
+            )}
+            outside = sorted(days - domain)
+            if outside:
+                rejections.append({
+                    "code": "exchange_interval_outside_opening",
+                    "exchange_id": p["exchange_id"],
+                    "scope_id": p["scope_id"],
+                    "outside_days": outside,
+                    "message": "exchange interval must be a half-open interval inside the opened ledger",
+                })
+
+    if rejections:
+        raise LedgerBatchRejected({
+            "report_type": "makeup_ledger_batch_result",
+            "status": "rejected",
+            "error": "exchange batch violates ledger identity/uniqueness/opening rules; nothing was posted",
+            "rejections": _led_dedupe_rejections(rejections),
+            "idempotent_order_ids": duplicate_ids,
+        })
+
+    # Whole-batch idempotent replay by batch_id.
+    existing_batch_idx = draft["batch_ids"].get(str(meta["batch_id"])) if meta.get("batch_id") else None
+    if existing_batch_idx is not None:
+        prior_batch = draft["batches"][existing_batch_idx]
+        wanted = {p["exchange_id"] for p in parsed}
+        if set(prior_batch.get("exchange_ids", [])) == wanted:
+            result = _led_deepcopy(prior_batch["view"])
+            _led_enrich_state_view(draft, result, prior_batch.get("batch_index"))
+            result["status"] = "unchanged"
+            result["idempotent_batch_replay"] = True
+            return result
+        raise LedgerBatchRejected({
+            "report_type": "makeup_ledger_batch_result",
+            "status": "rejected",
+            "error": f"batch_id {meta['batch_id']!r} was already used for a different reception",
+            "rejections": [{"code": "batch_id_already_used", "batch_id": meta["batch_id"]}],
+        })
+
+    if not new_contents:
+        # Pure valid resend(s): no operation, no new batch.
+        latest = draft["batches"][-1]
+        result = _led_deepcopy(latest["view"])
+        _led_enrich_state_view(draft, result, latest.get("batch_index"))
+        result["status"] = "unchanged"
+        result["idempotent_order_ids"] = duplicate_ids
+        result["message"] = "identical content resent for a known exchange id; no operation"
+        return result
+
+    # ---- Phase 4: allocate batch identity and insert immutable lines -------
+    batch_index = len(draft["batches"])
+    batch_id = str(meta["batch_id"] or f"B{batch_index}")
+    received_at = meta["received_at"] or datetime.now(timezone.utc).isoformat()
+
+    seed_ids: list[str] = []
+    for p in new_contents:
+        exid = p["exchange_id"]
+        seed_ids.append(exid)
+        # Apportion each new line once from the fixed settlement basis.
+        for ln in p["new_lines"]:
+            s = date.fromisoformat(ln["start_day"])
+            e = date.fromisoformat(ln["end_day"])
+            days = _led_days(s, e)
+            weights = {d.isoformat(): MakeupLedger._basis_weight(draft["basis"], p["scope_id"], d.isoformat()) for d in days}  # noqa: E501
+            ln["apportionment"] = ledger_apportion_by_weights(ln["amount_cents"], days, weights)
+            draft["lines"][ln["line_id"]] = {
+                "line_id": ln["line_id"],
+                "kind": "new",
+                "scope_id": p["scope_id"],
+                "start_day": ln["start_day"],
+                "end_day": ln["end_day"],
+                "amount_cents": ln["amount_cents"],
+                "fee_type": ln.get("fee_type"),
+                "source_exchange_id": exid,
+                "apportionment": ln["apportionment"],
+                "created_batch_id": batch_id,
+                "created_batch_index": batch_index,
+            }
+        draft["orders"][exid] = {
+            **{k: v for k, v in p.items()},
+            "status": _LED_STATUS_PENDING,  # replaced during re-adjudication
+            "received_batch_id": batch_id,
+            "received_batch_index": batch_index,
+            "received_at": received_at,
+            "adjudication": None,
+            "ruling_history": [],
+        }
+        draft["seq_index"][str(p["effective_seq"])] = exid
+
+    # ---- Phase 5: incremental re-adjudication -----------------------------
+    affected, propagation_edges = _led_affected_order_ids(draft, seed_ids)
+    touched: set[tuple[str, str]] = set()
+    for oid in affected:
+        o = draft["orders"][oid]
+        for d in _led_days(date.fromisoformat(o["start_day"]), date.fromisoformat(o["end_day"])):
+            touched.add((o["scope_id"], d.isoformat()))
+
+    before_daily = {
+        (sid, day): _led_deepcopy(draft["daily"].get(sid, {}).get(day))
+        for sid, day in touched
+    }
+
+    # Roll back currently-effective affected orders, descending effective seq.
+    existing_affected = [oid for oid in affected if oid not in seed_ids]
+    for oid in sorted(existing_affected, key=lambda x: -draft["orders"][x]["effective_seq"]):
+        o = draft["orders"][oid]
+        if o["status"] == _LED_STATUS_EFFECTIVE:
+            _led_rollback_order(draft, o)
+
+    changed_adjudications: list[dict] = []
+    reaffirmed_adjudications: list[dict] = []
+    new_order_rulings: list[dict] = []
+    for oid in sorted(affected, key=lambda x: (draft["orders"][x]["effective_seq"], x)):
+        o = draft["orders"][oid]
+        old_status = o["status"] if oid not in seed_ids else "not_received"
+        old_adj = _led_deepcopy(o.get("adjudication")) if oid not in seed_ids else None
+        status, reasons, prior = _led_adjudicate(draft, o, draft["attribution"])
+        new_adj = {
+            "status": status,
+            "reasons": reasons,
+            "prior_line_by_day": prior,
+            "adjudicated_in_batch": batch_id,
+            "adjudicated_at": received_at,
+        }
+        ruling_changed = old_status != status
+        detail_changed = (
+            old_adj is not None
+            and _led_canonical_ruling(old_adj) != _led_canonical_ruling(new_adj)
+        )
+        o["status"] = status
+        o["adjudication"] = new_adj
+        o.setdefault("ruling_history", []).append({
+            "batch_id": batch_id,
+            "batch_index": batch_index,
+            "received_at": received_at,
+            "status": status,
+            "reasons": _led_deepcopy(reasons),
+        })
+        if status == _LED_STATUS_EFFECTIVE:
+            _led_apply_order_to_maps(draft, o, draft["attribution"], draft["daily"])
+        if oid in seed_ids:
+            new_order_rulings.append({
+                "exchange_id": oid,
+                "effective_seq": o["effective_seq"],
+                "scope_id": o["scope_id"],
+                "status": status,
+                "effective": status == _LED_STATUS_EFFECTIVE,
+                "status_label": _LED_STATUS_LABELS[status],
+                "reasons": reasons,
+            })
+        elif ruling_changed:
+            changed_adjudications.append({
+                "exchange_id": oid,
+                "effective_seq": o["effective_seq"],
+                "scope_id": o["scope_id"],
+                "interval": [o["start_day"], o["end_day"]],
+                "before_status": old_status,
+                "after_status": status,
+                "ruling_changed": True,
+                "detail_changed": detail_changed,
+                "status_flipped": True,
+                "before_status_label": _LED_STATUS_LABELS.get(old_status, old_status),
+                "after_status_label": _LED_STATUS_LABELS[status],
+                "previous_reasons": (old_adj or {}).get("reasons", []),
+                "reasons": reasons,
+                "reason": _led_primary_reason(reasons, ruling_changed, old_status, status),
+                "old_line_ids": list(o["old_line_ids"]),
+                "new_line_ids": [ln["line_id"] for ln in o["new_lines"]],
+                "old_line_records": _led_line_refs(draft, o["old_line_ids"]),
+                "new_line_records": _led_deepcopy(o["new_lines"]),
+            })
+        elif detail_changed:
+            # Re-adjudicated through overlap with unchanged ruling; the
+            # matched day/line evidence moved (audit-only, posts no delta).
+            reaffirmed_adjudications.append({
+                "exchange_id": oid,
+                "effective_seq": o["effective_seq"],
+                "scope_id": o["scope_id"],
+                "interval": [o["start_day"], o["end_day"]],
+                "status": status,
+                "ruling_changed": False,
+                "detail_changed": True,
+                "status_label": _LED_STATUS_LABELS[status],
+                "reasons": reasons,
+            })
+
+    # ---- Phase 6: postings = current diff - pre-reception diff -----------
+    postings: list[dict] = []
+    daily_changes: list[dict] = []
+    for sid, day in sorted(touched):
+        before = before_daily.get((sid, day))
+        after = draft["daily"].get(sid, {}).get(day)
+        before_cents = (before or {}).get("apportioned_amount_cents")
+        after_cents = (after or {}).get("apportioned_amount_cents")
+        before_line = (before or {}).get("line_id")
+        after_line = (after or {}).get("line_id")
+        if before_cents == after_cents and before_line == after_line:
+            continue
+        sys_cents = int(draft["basis"][sid][day]["system_amount_cents_rounded"])
+        b_app = before_cents if before_cents is not None else 0
+        a_app = after_cents if after_cents is not None else 0
+        b_diff = b_app - sys_cents
+        a_diff = a_app - sys_cents
+        delta = a_diff - b_diff
+        entry = {
+            "scope_id": sid,
+            "billing_day": day,
+            "before_line_id": before_line,
+            "after_line_id": after_line,
+            "old_line_id": before_line,   # vocabulary alias
+            "new_line_id": after_line,     # vocabulary alias
+            "before_apportioned_amount_cents": b_app,
+            "after_apportioned_amount_cents": a_app,
+            "system_amount_cents": sys_cents,
+            "before_daily_difference_cents": b_diff,
+            "after_daily_difference_cents": a_diff,
+            "delta_cents": delta,
+            "makeup_delta_cents": delta,   # vocabulary alias
+            "entry_type": (
+                "supplementary" if delta > 0 else ("reversal" if delta < 0 else "unchanged")
+            ),
+            "entry_type_label": (
+                "补记" if delta > 0 else ("冲回" if delta < 0 else "无差额")
+            ),
+        }
+        daily_changes.append(entry)
+        if delta != 0:
+            postings.append(entry)
+
+    # ---- Phase 7: freeze the finance view as this batch's snapshot --------
+    # Build a transient ledger wrapper to reuse the view constructor.
+    wrapper = MakeupLedger.__new__(MakeupLedger)
+    wrapper._state = draft
+    wrapper.store_path = None
+    view = wrapper._build_view(
+        batch_id=batch_id,
+        batch_index=batch_index,
+        received_at=received_at,
+        postings=postings,
+        daily_changes=daily_changes,
+        changed_adjudications=changed_adjudications,
+        reaffirmed_adjudications=reaffirmed_adjudications,
+        new_order_rulings=new_order_rulings,
+        considered_order_ids=sorted(affected),
+        trigger_order_ids=seed_ids,
+        propagation_edges=propagation_edges,
+    )
+    exchange_ids = [p["exchange_id"] for p in parsed]
+    batch_record = {
+        "batch_id": batch_id,
+        "batch_index": batch_index,
+        "received_at": received_at,
+        "kind": "reception",
+        "exchange_ids": exchange_ids,
+        "new_order_ids": seed_ids,
+        "idempotent_order_ids": duplicate_ids,
+        "status": "accepted",
+        "affected_order_ids": sorted(affected),
+        "propagation_edges": propagation_edges,
+        "changed_adjudication_ids": [c["exchange_id"] for c in changed_adjudications],
+        "reaffirmed_adjudication_ids": [c["exchange_id"] for c in reaffirmed_adjudications],
+        "totals": view["totals"],
+        "view": view,
+    }
+    draft["batches"].append(batch_record)
+    draft["batch_ids"][batch_id] = batch_index
+    draft["current_batch_id"] = batch_id
+
+    result = _led_enrich_state_view(draft, _led_deepcopy(view), batch_index)
+    result.update({
+        "report_type": "makeup_ledger_batch_result",
+        "status": "accepted",
+        "batch_id": batch_id,
+        "batch_index": batch_index,
+        "received_order_ids": exchange_ids,
+        "new_order_ids": seed_ids,
+        "idempotent_order_ids": duplicate_ids,
+        "affected_order_ids": sorted(affected),
+        "propagation_edges": propagation_edges,
+        "changed_adjudication_ids": [c["exchange_id"] for c in changed_adjudications],
+        "reaffirmed_adjudication_ids": [c["exchange_id"] for c in reaffirmed_adjudications],
+    })
+    # The snapshot is the same complete finance view (independent copy).
+    result["snapshot"] = _led_deepcopy(result)
+    return result
+
+
+def _led_canonical_ruling(adj: Optional[dict]) -> str:
+    if not adj:
+        return ""
+    return json.dumps(
+        {"status": adj.get("status"), "reasons": adj.get("reasons"), "prior": adj.get("prior_line_by_day")},
+        sort_keys=True, ensure_ascii=False,
+    )
+
+
+def _led_primary_reason(reasons: list[dict], changed: bool, old: str, new: str) -> dict:
+    if changed and old != "not_received":
+        head = {
+            "code": "ruling_changed_from_" + old + "_to_" + new,
+            "message": f"re-adjudication changed ruling {old} -> {new} due to this reception",
+        }
+        if reasons:
+            head["detail"] = reasons[0]
+        return head
+    return reasons[0] if reasons else {"code": "all_preconditions_satisfied"}
+
+
+def _led_line_refs(draft: dict, ids: list[str]) -> list[dict]:
+    out = []
+    for lid in ids:
+        rec = draft["lines"].get(lid)
+        if rec is None:
+            out.append({"line_id": lid, "in_ledger": False, "note": "old line has not been received yet"})
+        else:
+            out.append({"line_id": lid, "in_ledger": True, **_led_deepcopy(rec)})
+    return out
+
+
+def _led_dedupe_rejections(items: list[dict]) -> list[dict]:
+    seen = set()
+    out = []
+    for it in items:
+        key = json.dumps(it, sort_keys=True, ensure_ascii=False, default=str)
+        if key not in seen:
+            seen.add(key)
+            out.append(it)
+    return out
+
+
+# ---------------------------------------------------------------------------
+# Module-level functional API and naming aliases
+# ---------------------------------------------------------------------------
+
+def open_makeup_ledger(
+    settlement: Any = None,
+    original_bills: Any = None,
+    *,
+    store_path: Optional[Path | str] = None,
+    **kwargs: Any,
+) -> MakeupLedger:
+    """Open the makeup ledger from fixed settlement input + original bills.
+
+    Raises :class:`LedgerOpeningRejected` (carries ``.report``) when the
+    baseline has unattributable blocking evidence or bill days are not
+    openable; raises :class:`LedgerStructureError` for malformed documents.
+    """
+    # Tolerate common calling-convention aliases for the settlement artifact.
+    if settlement is None:
+        for key in ("settlement_input", "root", "baseline", "input", "settlement_root"):
+            if key in kwargs and kwargs[key] is not None:
+                settlement = kwargs.pop(key)
+                break
+    if kwargs.get("settlement_report") is None:
+        for key in ("report", "settlement_result"):
+            if key in kwargs and kwargs[key] is not None:
+                kwargs["settlement_report"] = kwargs.pop(key)
+                break
+    if original_bills is None and kwargs.get("bills") is not None:
+        original_bills = kwargs["bills"]
+    if kwargs.get("system_amounts") is None:
+        for key in (
+            "system_daily_amounts", "daily_system_amounts", "basis_amounts",
+            "amounts_by_day", "system_cents", "daily_amounts",
+        ):
+            if kwargs.get(key) is not None:
+                kwargs["system_amounts"] = kwargs.pop(key)
+                break
+    return MakeupLedger.open(
+        settlement=settlement,
+        original_bills=original_bills,
+        store_path=store_path,
+        persist=store_path is not None,
+        **kwargs,
+    )
+
+
+def try_open_makeup_ledger(*args: Any, **kwargs: Any) -> dict:
+    """Non-raising opening: ``{"status":"opened","ledger":...}`` or rejected report."""
+    try:
+        ledger = open_makeup_ledger(*args, **kwargs)
+        return {"status": "opened", "ledger": ledger, "opening": ledger.opening_report}
+    except LedgerOpeningRejected as exc:
+        return _led_deepcopy(exc.report)
+    except (LedgerStructureError, InputError) as exc:
+        return {
+            "report_type": "makeup_ledger_opening",
+            "status": "invalid_structure",
+            "error": str(exc),
+            "error_type": type(exc).__name__,
+        }
+
+
+def receive_exchange_batch(
+    ledger: Any,
+    batch: Any = None,
+    *,
+    store_path: Optional[Path | str] = None,
+    **kwargs: Any,
+) -> dict:
+    """Receive one actual batch (one or many exchange orders) atomically.
+
+    ``ledger`` may be a :class:`MakeupLedger`, a state dict, or a store path.
+    """
+    if isinstance(ledger, (str, Path)):
+        ledger = MakeupLedger.load(ledger)
+    elif isinstance(ledger, dict) and ledger.get("report_type") == "makeup_ledger_state":
+        ledger = MakeupLedger(ledger)
+    elif hasattr(ledger, "receive_batch") and hasattr(ledger, "state"):
+        # Duck-typed ledger (e.g. loaded through a separately imported module).
+        if store_path is not None and hasattr(ledger, "store_path"):
+            ledger.store_path = Path(store_path)
+        return ledger.receive_batch(batch, **kwargs)
+    if not isinstance(ledger, MakeupLedger):
+        raise LedgerStructureError("ledger must be a MakeupLedger, state dict, or store path")
+    if store_path is not None:
+        ledger.store_path = Path(store_path)
+    return ledger.receive_batch(batch, **kwargs)
+
+
+def try_receive_exchange_batch(ledger: Any, batch: Any = None, **kwargs: Any) -> dict:
+    """Non-raising reception: rejected batches come back as status='rejected'."""
+    try:
+        return receive_exchange_batch(ledger, batch, **kwargs)
+    except LedgerBatchRejected as exc:
+        return _led_deepcopy(exc.report)
+    except LedgerStructureError as exc:
+        return {
+            "report_type": "makeup_ledger_batch_result",
+            "status": "invalid_structure",
+            "error": str(exc),
+        }
+
+
+def load_makeup_ledger(path: Path | str) -> MakeupLedger:
+    return MakeupLedger.load(path)
+
+
+def reopen_makeup_ledger(path: Path | str) -> MakeupLedger:
+    return MakeupLedger.load(path)
+
+
+def run_makeup_ledger_workflow(
+    *,
+    settlement: Any = None,
+    settlement_report: Any = None,
+    system_amounts: Any = None,
+    original_bills: Any = None,
+    batches: Optional[list[Any]] = None,
+    store_path: Optional[Path | str] = None,
+    ledger_id: Optional[str] = None,
+) -> dict:
+    """Convenience end-to-end driver: open then receive every batch in order.
+
+    Returns ``{"ledger": <MakeupLedger>, "opening": ..., "batch_results": [...]}``.
+    Each item of ``batches`` may be a list of orders or a reception document.
+    """
+    ledger = open_makeup_ledger(
+        settlement=settlement,
+        settlement_report=settlement_report,
+        system_amounts=system_amounts,
+        original_bills=original_bills,
+        ledger_id=ledger_id,
+        store_path=store_path,
+    )
+    results: list[dict] = []
+    for i, batch in enumerate(batches or []):
+        if isinstance(batch, dict) and "batch" in batch and isinstance(batch["batch"], (dict, list)):
+            doc = batch["batch"]
+            kw = {k: v for k, v in batch.items() if k != "batch"}
+            if isinstance(doc, list):
+                results.append(ledger.receive_batch(doc, **kw))
+            else:
+                merged = {**kw, **doc}
+                results.append(ledger.receive_batch(merged))
+        else:
+            results.append(ledger.receive_batch(batch, batch_id=f"B{i + 1}" if isinstance(batch, list) else None))
+    if store_path is not None:
+        ledger.save(store_path)
+    return {"ledger": ledger, "opening": ledger.opening_report, "batch_results": results}
+
+
+def run_ledger_scenario(spec: dict) -> dict:
+    """One JSON-able call: open from ``spec['opening']`` and run ``spec['batches']``.
+
+    Unlike :func:`run_makeup_ledger_workflow`, the return value contains no
+    ledger object and is directly JSON serializable::
+
+        {"status": "opened"|"rejected", "opening": ...,
+         "batch_results": [ ... ], "final_view": ...}
+
+    A rejected opening returns the structured rejection report.  A rejected
+    batch is captured as its report and processing stops (the ledger keeps the
+    state before that batch).
+    """
+    if not isinstance(spec, dict):
+        raise LedgerStructureError("scenario spec must be an object")
+    opening = dict(spec.get("opening") or {})
+    store_path = spec.get("store_path", opening.pop("store_path", None))
+    try:
+        ledger = open_makeup_ledger(store_path=store_path, **opening)
+    except LedgerOpeningRejected as exc:
+        return _led_deepcopy(exc.report)
+    except InputError as exc:
+        return {
+            "report_type": "makeup_ledger_opening",
+            "status": "invalid_structure",
+            "error": str(exc),
+            "error_type": type(exc).__name__,
+        }
+    results: list[dict] = []
+    for i, batch in enumerate(spec.get("batches") or []):
+        try:
+            results.append(ledger.receive_batch(batch))
+        except LedgerBatchRejected as exc:
+            results.append(_led_deepcopy(exc.report))
+            break
+        except InputError as exc:
+            results.append({
+                "report_type": "makeup_ledger_batch_result",
+                "status": "invalid_structure",
+                "error": str(exc),
+                "error_type": type(exc).__name__,
+            })
+            break
+    if store_path is not None:
+        ledger.save(store_path)
+    return {
+        "report_type": "makeup_ledger_scenario",
+        "status": "completed",
+        "opening": ledger.opening_report,
+        "batch_results": results,
+        "final_view": ledger.view(),
+        "self_check": ledger.verify_incremental_matches_full_refold(),
+    }
+
+
+def write_ledger_postings_csv(ledger: MakeupLedger | dict, path: Path | str) -> Path:
+    """Write one flat row per nonzero 补记/冲回 posting across all batches."""
+    import csv
+    if isinstance(ledger, dict):
+        ledger = MakeupLedger(ledger)
+    target = Path(path)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    rows = ledger.postings_history()
+    fields = [
+        "batch_id", "batch_index", "scope_id", "billing_day", "entry_type",
+        "entry_type_label", "delta_cents", "before_line_id", "after_line_id",
+        "before_apportioned_amount_cents", "after_apportioned_amount_cents",
+        "system_amount_cents", "before_daily_difference_cents",
+        "after_daily_difference_cents",
+    ]
+    with target.open("w", encoding="utf-8", newline="") as fh:
+        writer = csv.DictWriter(fh, fieldnames=fields, extrasaction="ignore")
+        writer.writeheader()
+        for row in rows:
+            writer.writerow(row)
+    return target
+
+
+# Naming aliases for the same capability (different vocabularies call 补差
+# "makeup", "true-up", "difference" or "adjustment" ledger).
+MakeupDifferenceLedger = MakeupLedger
+MakeupDiffLedger = MakeupLedger
+MakeupBook = MakeupLedger
+TrueUpLedger = MakeupLedger
+TrueupLedger = MakeupLedger
+TrueUpBook = MakeupLedger
+DifferenceLedger = MakeupLedger
+DifferenceBook = MakeupLedger
+AdjustmentLedger = MakeupLedger
+AdjustmentBook = MakeupLedger
+SupplementaryLedger = MakeupLedger
+Ledger = MakeupLedger
+
+create_makeup_ledger = open_makeup_ledger
+build_makeup_ledger = open_makeup_ledger
+new_makeup_ledger = open_makeup_ledger
+makeup_ledger = open_makeup_ledger
+makeup_difference_ledger = open_makeup_ledger
+true_up_ledger = open_makeup_ledger
+trueup_ledger = open_makeup_ledger
+difference_ledger = open_makeup_ledger
+open_ledger = open_makeup_ledger
+create_ledger = open_makeup_ledger
+open_true_up_ledger = open_makeup_ledger
+open_difference_ledger = open_makeup_ledger
+load_ledger = load_makeup_ledger
+reopen_ledger = reopen_makeup_ledger
+receive_batch = receive_exchange_batch
+receive_makeup_batch = receive_exchange_batch
+accept_exchange_batch = receive_exchange_batch
+intake_exchange_batch = receive_exchange_batch
+account_exchange_orders = run_makeup_ledger_workflow
+process_exchange_batches = run_makeup_ledger_workflow
+settle_makeup_differences = run_makeup_ledger_workflow
+simulate_makeup_ledger = run_ledger_scenario
+ledger_scenario = run_ledger_scenario
+
+for _alias in (
+    "accept_batch", "intake_batch", "post_batch", "receive_exchanges",
+    "add_exchange_orders", "process_batch", "receive_exchange_order",
+    "receive_orders", "add_batch", "post", "receive_batches",
+):
+    if not hasattr(MakeupLedger, _alias):
+        setattr(MakeupLedger, _alias, MakeupLedger.receive_batch)
+for _alias in ("get_snapshot", "snapshot_at", "as_of", "query_view", "state_at", "view_batch_at"):
+    if not hasattr(MakeupLedger, _alias):
+        setattr(MakeupLedger, _alias, MakeupLedger.view)
+for _alias in ("fetch_batch", "batch_view", "get_reception"):
+    if not hasattr(MakeupLedger, _alias):
+        setattr(MakeupLedger, _alias, MakeupLedger.get_batch)
+
+
+# ---------------------------------------------------------------------------
+# JSON document / CLI support
+# ---------------------------------------------------------------------------
+
+def _led_load_json_maybe_file(value: Any, base_dir: Path) -> Any:
+    if isinstance(value, str) and value.endswith(".json"):
+        p = Path(value)
+        if not p.is_absolute():
+            p = base_dir / p
+        return json.loads(p.read_text(encoding="utf-8"))
+    return value
+
+
+def ledger_opening_kwargs_from_doc(doc: Any, base_dir: Optional[Path] = None) -> dict:
+    """Normalize an opening JSON document into :meth:`MakeupLedger.open` kwargs."""
+    base_dir = base_dir or Path.cwd()
+    if not isinstance(doc, dict):
+        raise LedgerStructureError("opening document must be a JSON object")
+    kwargs: dict[str, Any] = {
+        "ledger_id": doc.get("ledger_id") or doc.get("id"),
+        "money_scale": int(doc.get("money_scale", 100)),
+        "out_of_opening_policy": doc.get("out_of_opening_policy", "reject"),
+        "opening_batch_id": doc.get("opening_batch_id", _LEDGER_OPENING_BATCH),
+        "created_at": doc.get("created_at") or doc.get("opened_at"),
+    }
+    bills = _led_pick(doc, (
+        "original_bills", "original_bill_lines", "bill_lines", "bills", "lines", "原账单",
+    ))
+    kwargs["original_bills"] = bills
+
+    report = doc.get("settlement_report")
+    report_path = doc.get("settlement_report_path") or doc.get("report_path")
+    if report_path:
+        report = json.loads(_led_resolve(base_dir, report_path).read_text(encoding="utf-8"))
+    if report is not None:
+        kwargs["settlement_report"] = _led_load_json_maybe_file(report, base_dir) if isinstance(report, str) else report
+
+    settlement = doc.get("settlement_input") or doc.get("settlement")
+    input_path = (
+        doc.get("settlement_input_path") or doc.get("input_path")
+        or doc.get("baseline") or doc.get("baseline_input")
+    )
+    if input_path:
+        p = _led_resolve(base_dir, input_path)
+        loaded = json.loads(p.read_text(encoding="utf-8"))
+        if _led_looks_like_report(loaded):
+            kwargs["settlement_report"] = loaded
+        else:
+            kwargs["settlement"] = loaded
+    elif settlement is not None:
+        kwargs["settlement"] = json.loads(Path(settlement).read_text(encoding="utf-8")) if isinstance(settlement, str) and _looks_like_path(settlement) else settlement  # noqa: E501
+    elif any(k in doc for k in ("readings", "control_totals", "tariff_versions")):
+        # The opening document itself may be the settlement input root.
+        kwargs["settlement"] = doc
+
+    if doc.get("system_amounts") is not None:
+        kwargs["system_amounts"] = doc["system_amounts"]
+    return {k: v for k, v in kwargs.items() if v is not None}
+
+
+def _looks_like_path(text: str) -> bool:
+    return text.endswith(".json") or "/" in text or "\\" in text
+
+
+def _led_resolve(base_dir: Path, maybe: Any) -> Path:
+    p = Path(str(maybe))
+    return p if p.is_absolute() else (base_dir / p)
+
+
+def ledger_cli(args: argparse.Namespace) -> int:
+    store = args.ledger_store
+    out_target = getattr(args, "ledger_output", None) or args.output
+
+    def emit(payload: Any, code: int = 0) -> int:
+        text = json.dumps(payload, ensure_ascii=False, indent=2, default=str)
+        if out_target:
+            _write_text_atomic(Path(out_target), text)
+        else:
+            sys.stdout.write(text + "\n")
+        return code
+
+    try:
+        if args.ledger_open:
+            doc_path = Path(args.ledger_open)
+            doc = json.loads(doc_path.read_text(encoding="utf-8"))
+            kwargs = ledger_opening_kwargs_from_doc(doc, doc_path.parent.resolve())
+            if store:
+                kwargs["store_path"] = store
+            try:
+                ledger = open_makeup_ledger(**kwargs)
+            except LedgerOpeningRejected as exc:
+                return emit(exc.report, 3)
+            result = ledger.opening_report
+            result["opening_view"] = ledger.view(_LEDGER_OPENING_BATCH)
+            if store:
+                result["store_path"] = str(ledger.store_path)
+            return emit(result, 0)
+
+        if args.ledger_receive:
+            if not store:
+                raise LedgerStructureError("--ledger-receive requires --ledger-store")
+            ledger = MakeupLedger.load(store)
+            doc_path = Path(args.ledger_receive)
+            payload = json.loads(doc_path.read_text(encoding="utf-8"))
+            result = ledger.receive_batch(payload)
+            result["store_path"] = str(ledger.store_path)
+            if args.ledger_postings_csv:
+                csv_path = write_ledger_postings_csv(ledger, args.ledger_postings_csv)
+                result["postings_csv"] = str(csv_path)
+            return emit(result, 0)
+
+        if args.ledger_postings_csv and store and not (args.ledger_view is not None or args.ledger_batch is not None):
+            ledger = MakeupLedger.load(store)
+            csv_path = write_ledger_postings_csv(ledger, args.ledger_postings_csv)
+            return emit({"report_type": "makeup_ledger_postings_csv", "csv_path": str(csv_path),
+                         "rows": len(ledger.postings_history())}, 0)
+
+        if args.ledger_history:
+            if not store:
+                raise LedgerStructureError("--ledger-history requires --ledger-store")
+            ledger = MakeupLedger.load(store)
+            return emit({
+                "report_type": "makeup_ledger_history",
+                "ledger_id": ledger.state["ledger_id"],
+                "batches": ledger.list_batches(),
+            }, 0)
+
+        if args.ledger_view is not None or args.ledger_batch is not None:
+            if not store:
+                raise LedgerStructureError("--ledger-view requires --ledger-store")
+            ledger = MakeupLedger.load(store)
+            batch = args.ledger_batch
+            if args.ledger_view and args.ledger_view != "__latest__":
+                batch = args.ledger_view
+            view = ledger.view(batch)
+            return emit(view, 0)
+
+        raise LedgerStructureError("no ledger command requested")
+    except LedgerBatchRejected as exc:
+        return emit(exc.report, 2)
+    except LedgerOpeningRejected as exc:
+        return emit(exc.report, 3)
+    except InputError as exc:
+        err = {"report_type": "makeup_ledger_cli_error", "status": "fatal_input_error", "error": str(exc),
+               "error_type": type(exc).__name__}
+        if out_target:
+            _write_text_atomic(Path(out_target), json.dumps(err, ensure_ascii=False, indent=2))
+        else:
+            sys.stderr.write(json.dumps(err, ensure_ascii=False, indent=2) + "\n")
+        return 2
+
+
+LEDGER_CLI_FLAGS_ADDED = True
+
+
 def main(argv: Optional[list[str]] = None) -> int:
     parser = argparse.ArgumentParser(
         description=(
@@ -4160,7 +6648,47 @@ def main(argv: Optional[list[str]] = None) -> int:
         "--impact-csv", type=Path,
         help="Write one row per compared control cell to this CSV path (implies --impact)",
     )
+    parser.add_argument(
+        "--ledger-open", type=Path,
+        help="Open a makeup-difference ledger from this opening JSON document",
+    )
+    parser.add_argument(
+        "--ledger-receive", type=Path,
+        help="Receive one exchange-order batch JSON document into --ledger-store",
+    )
+    parser.add_argument(
+        "--ledger-store", type=Path,
+        help="Makeup ledger state file (or directory containing makeup_ledger_state.json)",
+    )
+    parser.add_argument(
+        "--ledger-output", type=Path,
+        help="Write the ledger command JSON result here (defaults to --output / stdout)",
+    )
+    parser.add_argument(
+        "--ledger-view", nargs="?", const="__latest__", default=None,
+        help="Print the frozen finance view of a batch id (optional value; default latest)",
+    )
+    parser.add_argument(
+        "--ledger-batch", default=None,
+        help="Batch id/index for --ledger-view",
+    )
+    parser.add_argument(
+        "--ledger-history", action="store_true",
+        help="List retained reception batches in --ledger-store",
+    )
+    parser.add_argument(
+        "--ledger-postings-csv", type=Path,
+        help="Write one row per 补记/冲回 posting (all retained batches) to this CSV",
+    )
     args = parser.parse_args(argv)
+
+    wants_ledger = bool(
+        args.ledger_open or args.ledger_receive or args.ledger_view is not None
+        or args.ledger_history or args.ledger_batch is not None
+        or args.ledger_postings_csv
+    )
+    if wants_ledger:
+        return ledger_cli(args)
 
     wants_impact = bool(args.impact or args.impact_output or args.impact_csv)
     if wants_impact:

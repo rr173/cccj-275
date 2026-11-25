@@ -1,0 +1,44 @@
+{
+  "rule_version": "ledger-example-rules-1",
+  "currency": "CNY",
+  "billing_calendar": {
+    "calendar_id": "utc",
+    "timezone": "UTC",
+    "billing_day_start": "00:00"
+  },
+  "readings": [
+    {"reading_id": "rd-0", "meter_id": "M-L1", "ts": "2025-03-01T00:00:00+00:00", "value_wh": 0},
+    {"reading_id": "rd-1", "meter_id": "M-L1", "ts": "2025-03-02T00:00:00+00:00", "value_wh": 100},
+    {"reading_id": "rd-2", "meter_id": "M-L1", "ts": "2025-03-03T00:00:00+00:00", "value_wh": 300},
+    {"reading_id": "rd-3", "meter_id": "M-L1", "ts": "2025-03-04T00:00:00+00:00", "value_wh": 600},
+    {"reading_id": "rd-4", "meter_id": "M-L1", "ts": "2025-03-05T00:00:00+00:00", "value_wh": 1000},
+    {"reading_id": "rd-5", "meter_id": "M-L1", "ts": "2025-03-06T00:00:00+00:00", "value_wh": 1500}
+  ],
+  "bindings": [
+    {
+      "binding_id": "b-l1",
+      "meter_id": "M-L1",
+      "point_id": "MP-L1",
+      "scope_id": "S-PARK",
+      "valid_from": "2025-01-01T00:00:00+00:00",
+      "valid_to": "2025-12-31T00:00:00+00:00"
+    }
+  ],
+  "tariff_versions": [
+    {
+      "tariff_version": "tv-energy-1",
+      "scope_id": "S-PARK",
+      "rate_id": "energy-flat",
+      "unit_price": "1/100",
+      "effective_from": "2025-01-01T00:00:00+00:00",
+      "effective_to": "2025-12-31T00:00:00+00:00"
+    }
+  ],
+  "control_totals": [
+    {"control_id": "c-0301", "scope_id": "S-PARK", "billing_day": "2025-03-01", "rate_id": "energy-flat", "total_wh": 100},
+    {"control_id": "c-0302", "scope_id": "S-PARK", "billing_day": "2025-03-02", "rate_id": "energy-flat", "total_wh": 200},
+    {"control_id": "c-0303", "scope_id": "S-PARK", "billing_day": "2025-03-03", "rate_id": "energy-flat", "total_wh": 300},
+    {"control_id": "c-0304", "scope_id": "S-PARK", "billing_day": "2025-03-04", "rate_id": "energy-flat", "total_wh": 400},
+    {"control_id": "c-0305", "scope_id": "S-PARK", "billing_day": "2025-03-05", "rate_id": "energy-flat", "total_wh": 500}
+  ]
+}

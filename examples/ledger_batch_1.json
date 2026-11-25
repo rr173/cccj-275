@@ -1,0 +1,30 @@
+{
+  "batch_id": "R1-2025-03-10",
+  "received_at": "2025-03-10T09:30:00Z",
+  "exchanges": [
+    {
+      "exchange_id": "EX-8",
+      "effective_seq": 8,
+      "scope_id": "S-PARK",
+      "day_from": "2025-03-03",
+      "day_to": "2025-03-05",
+      "old_line_ids": ["BL-A", "BL-B"],
+      "new_lines": [
+        {
+          "line_id": "N8-A",
+          "scope_id": "S-PARK",
+          "day_from": "2025-03-03",
+          "day_to": "2025-03-04",
+          "amount_cents": 333
+        },
+        {
+          "line_id": "N8-B",
+          "scope_id": "S-PARK",
+          "day_from": "2025-03-04",
+          "day_to": "2025-03-05",
+          "amount_cents": 380
+        }
+      ]
+    }
+  ]
+}
